@@ -1,0 +1,172 @@
+﻿<Window x:Class="testpro.Dialogs.DimensionInputDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="도면 크기 입력" 
+        Height="300" 
+        Width="450"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" 
+                   Text="도면의 실제 크기를 입력하세요." 
+                   FontSize="14"
+                   FontWeight="Bold"
+                   Margin="0,0,0,15"/>
+
+        <!-- 가로 입력 -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="60"/>
+                <ColumnDefinition Width="60"/>
+                <ColumnDefinition Width="30"/>
+                <ColumnDefinition Width="60"/>
+                <ColumnDefinition Width="30"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" 
+                       Text="가로:" 
+                       VerticalAlignment="Center" 
+                       FontWeight="Bold"/>
+
+            <TextBox Grid.Column="1" 
+                     x:Name="WidthFeetTextBox" 
+                     Text="48"
+                     VerticalAlignment="Center"
+                     TextAlignment="Center"
+                     PreviewTextInput="NumberValidationTextBox"/>
+
+            <TextBlock Grid.Column="2" 
+                       Text="피트" 
+                       VerticalAlignment="Center" 
+                       HorizontalAlignment="Right"
+                       Margin="0,0,5,0"
+                       FontSize="11"/>
+
+            <TextBox Grid.Column="3" 
+                     x:Name="WidthInchesTextBox" 
+                     Text="2"
+                     VerticalAlignment="Center"
+                     TextAlignment="Center"
+                     PreviewTextInput="NumberValidationTextBox"/>
+
+            <TextBlock Grid.Column="4" 
+                       Text="인치" 
+                       VerticalAlignment="Center" 
+                       HorizontalAlignment="Right"
+                       Margin="0,0,5,0"
+                       FontSize="11"/>
+
+            <TextBlock Grid.Column="6" 
+                       x:Name="WidthTotalText"
+                       VerticalAlignment="Center" 
+                       HorizontalAlignment="Left"
+                       Foreground="Gray"
+                       FontStyle="Italic"
+                       FontSize="11"/>
+        </Grid>
+
+        <!-- 세로 입력 -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="60"/>
+                <ColumnDefinition Width="60"/>
+                <ColumnDefinition Width="30"/>
+                <ColumnDefinition Width="60"/>
+                <ColumnDefinition Width="30"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0" 
+                       Text="세로:" 
+                       VerticalAlignment="Center" 
+                       FontWeight="Bold"/>
+
+            <TextBox Grid.Column="1" 
+                     x:Name="HeightFeetTextBox" 
+                     Text="48"
+                     VerticalAlignment="Center"
+                     TextAlignment="Center"
+                     PreviewTextInput="NumberValidationTextBox"
+                     TextChanged="HeightTextBox_TextChanged"/>
+
+            <TextBlock Grid.Column="2" 
+                       Text="피트" 
+                       VerticalAlignment="Center" 
+                       HorizontalAlignment="Right"
+                       Margin="0,0,5,0"
+                       FontSize="11"/>
+
+            <TextBox Grid.Column="3" 
+                     x:Name="HeightInchesTextBox" 
+                     Text="10"
+                     VerticalAlignment="Center"
+                     TextAlignment="Center"
+                     PreviewTextInput="NumberValidationTextBox"
+                     TextChanged="HeightTextBox_TextChanged"/>
+
+            <TextBlock Grid.Column="4" 
+                       Text="인치" 
+                       VerticalAlignment="Center" 
+                       HorizontalAlignment="Right"
+                       Margin="0,0,5,0"
+                       FontSize="11"/>
+
+            <TextBlock Grid.Column="6" 
+                       x:Name="HeightTotalText"
+                       VerticalAlignment="Center" 
+                       HorizontalAlignment="Left"
+                       Foreground="Gray"
+                       FontStyle="Italic"
+                       FontSize="11"/>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Margin="0,10,0,0">
+            <TextBlock Text="일반적인 마트 크기:" 
+                       FontWeight="Bold"
+                       Margin="0,0,0,5"/>
+            <TextBlock Text="• 소형: 30' x 40' (편의점)" 
+                       Foreground="Gray"
+                       FontSize="11"/>
+            <TextBlock Text="• 중형: 50' x 80' (일반 마트)" 
+                       Foreground="Gray"
+                       FontSize="11"/>
+            <TextBlock Text="• 대형: 100' x 150' (대형 마트)" 
+                       Foreground="Gray"
+                       FontSize="11"/>
+        </StackPanel>
+
+        <CheckBox Grid.Row="4" 
+                  x:Name="MaintainAspectRatioCheckBox" 
+                  Content="가로/세로 비율 유지 (체크 해제 시 도면에 정확히 맞춤)" 
+                  IsChecked="False" 
+                  Margin="0,10,0,0"/>
+
+        <StackPanel Grid.Row="5" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right">
+            <Button Content="확인" 
+                    Width="75" 
+                    Click="OK_Click" 
+                    IsDefault="True"
+                    Margin="0,0,5,0"/>
+            <Button Content="취소" 
+                    Width="75" 
+                    Click="Cancel_Click" 
+                    IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
