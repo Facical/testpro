@@ -47,71 +47,69 @@ namespace testpro.Dialogs
         private void InitializeObjectTypes()
         {
             objectTypes = new List<ObjectTypeInfo>
-            {
-                new ObjectTypeInfo
-                {
-                    Type = DetectedObjectType.Shelf,
-                    Name = "선반/진열대",
-                    Icon = "📦",
-                    Description = "다층 진열이 가능한 선반",
-                    ModelPath = "display_rack_shelf.obj",
-                    HasLayers = true,
-                    HasTemperature = false
-                },
-                new ObjectTypeInfo
-                {
-                    Type = DetectedObjectType.Refrigerator,
-                    Name = "냉장고",
-                    Icon = "❄️",
-                    Description = "음료 및 냉장 제품 보관",
-                    ModelPath = "beverage_refrigerator.obj",
-                    HasLayers = true,
-                    HasTemperature = true
-                },
-                new ObjectTypeInfo
-                {
-                    Type = DetectedObjectType.Freezer,
-                    Name = "냉동고",
-                    Icon = "🧊",
-                    Description = "아이스크림 및 냉동식품 보관",
-                    ModelPath = "freezer.obj",
-                    HasLayers = true,
-                    HasTemperature = true
-                },
-                new ObjectTypeInfo
-                {
-                    Type = DetectedObjectType.Checkout,
-                    Name = "계산대",
-                    Icon = "💳",
-                    Description = "고객 계산 처리 공간",
-                    ModelPath = "checkout.obj",
-                    HasLayers = false,
-                    HasTemperature = false
-                },
-                new ObjectTypeInfo
-                {
-                    Type = DetectedObjectType.DisplayStand,
-                    Name = "진열대",
-                    Icon = "🏪",
-                    Description = "특별 진열용 스탠드",
-                    ModelPath = "display_stand_pillar.obj",
-                    HasLayers = true,
-                    HasTemperature = false
-                },
-                new ObjectTypeInfo
-                {
-                    Type = DetectedObjectType.Pillar,
-                    Name = "기둥",
-                    Icon = "🏛️",
-                    Description = "구조물 기둥",
-                    ModelPath = "pillar.obj",
-                    HasLayers = false,
-                    HasTemperature = false
-                }
-            };
-
-            TypeListBox.ItemsSource = objectTypes;
-            TypeListBox.SelectedIndex = 0;
+    {
+        new ObjectTypeInfo
+        {
+            Type = DetectedObjectType.Shelf,
+            Name = "선반/진열대",
+            Icon = "📦",
+            Description = "다층 진열이 가능한 선반",
+            ModelPath = "display_rack_shelf.gltf",
+            HasLayers = true,
+            HasTemperature = false
+        },
+        new ObjectTypeInfo
+        {
+            Type = DetectedObjectType.DisplayRackDouble,
+            Name = "양면 진열대",
+            Icon = "📚",
+            Description = "양쪽에서 접근 가능한 진열대",
+            ModelPath = "display_rack_double.gltf",
+            HasLayers = true,
+            HasTemperature = false
+        },
+        new ObjectTypeInfo
+        {
+            Type = DetectedObjectType.Refrigerator,
+            Name = "오픈형 냉장고",
+            Icon = "❄️",
+            Description = "음료 냉장고 (문 없음)",
+            ModelPath = "refrigerator_open.gltf",
+            HasLayers = true,
+            HasTemperature = true
+        },
+        new ObjectTypeInfo
+        {
+            Type = DetectedObjectType.RefrigeratorWall,
+            Name = "벽면 냉장고",
+            Icon = "🥤",
+            Description = "유리문이 있는 대형 냉장고",
+            ModelPath = "refrigerator_wall.gltf",
+            HasLayers = true,
+            HasTemperature = true
+        },
+        new ObjectTypeInfo
+        {
+            Type = DetectedObjectType.Freezer,
+            Name = "냉동고",
+            Icon = "🧊",
+            Description = "냉동식품 보관",
+            ModelPath = "freezer.gltf",
+            HasLayers = true,
+            HasTemperature = true
+        },
+        new ObjectTypeInfo
+        {
+            Type = DetectedObjectType.FreezerChest,
+            Name = "평면 냉동고",
+            Icon = "🍦",
+            Description = "아이스크림 냉동고",
+            ModelPath = "freezer_chest.gltf",
+            HasLayers = false,
+            HasTemperature = true
+        },
+        // ... 나머지 타입들
+    };
         }
 
         private void SetupEventHandlers()
@@ -202,62 +200,49 @@ namespace testpro.Dialogs
         {
             if (selectedTypeInfo == null) return;
 
-            // 미리보기 텍스트 업데이트
             PreviewText.Text = $"{selectedTypeInfo.Name} - {selectedTypeInfo.ModelPath}";
-
-            // 층수 설정 표시/숨김
             LayersGroup.Visibility = selectedTypeInfo.HasLayers ? Visibility.Visible : Visibility.Collapsed;
-
-            // 온도 설정 표시/숨김
             TemperatureGroup.Visibility = selectedTypeInfo.HasTemperature ? Visibility.Visible : Visibility.Collapsed;
 
             // 타입별 기본값 설정
             switch (selectedTypeInfo.Type)
             {
-                case DetectedObjectType.Shelf:
+                case DetectedObjectType.DisplayRackDouble:
                     WidthTextBox.Text = "48";
-                    LengthTextBox.Text = "18";
+                    LengthTextBox.Text = "36";  // 양면이므로 더 깊음
                     HeightTextBox.Text = "72";
-                    LayersSlider.Value = 3;
+                    LayersSlider.Value = 5;
+                    LayersSlider.Maximum = 6;
+                    break;
+
+                case DetectedObjectType.RefrigeratorWall:
+                    WidthTextBox.Text = "96";  // 벽면형은 더 김
+                    LengthTextBox.Text = "24";
+                    HeightTextBox.Text = "84";
+                    LayersSlider.Value = 6;
+                    LayersSlider.Maximum = 7;
+                    TemperatureTextBox.Text = "4";
+                    break;
+
+                case DetectedObjectType.FreezerChest:
+                    WidthTextBox.Text = "72";
+                    LengthTextBox.Text = "36";
+                    HeightTextBox.Text = "36";  // 낮은 높이
+                    TemperatureTextBox.Text = "-18";
                     break;
 
                 case DetectedObjectType.Refrigerator:
                     WidthTextBox.Text = "36";
                     LengthTextBox.Text = "24";
                     HeightTextBox.Text = "84";
-                    LayersSlider.Value = 2;
+                    LayersSlider.Value = 5;  // 음료 냉장고는 보통 5-6층
+                    LayersSlider.Maximum = 7;
                     TemperatureTextBox.Text = "4";
                     break;
 
-                case DetectedObjectType.Freezer:
-                    WidthTextBox.Text = "36";
-                    LengthTextBox.Text = "24";
-                    HeightTextBox.Text = "84";
-                    LayersSlider.Value = 3;
-                    TemperatureTextBox.Text = "-18";
-                    break;
-
-                case DetectedObjectType.Checkout:
-                    WidthTextBox.Text = "48";
-                    LengthTextBox.Text = "36";
-                    HeightTextBox.Text = "36";
-                    break;
-
-                case DetectedObjectType.DisplayStand:
-                    WidthTextBox.Text = "60";
-                    LengthTextBox.Text = "30";
-                    HeightTextBox.Text = "48";
-                    LayersSlider.Value = 2;
-                    break;
-
-                case DetectedObjectType.Pillar:
-                    WidthTextBox.Text = "12";
-                    LengthTextBox.Text = "12";
-                    HeightTextBox.Text = "96";
-                    break;
+                    // ... 기존 케이스들
             }
 
-            // 카테고리 설정
             SetDefaultCategory();
         }
 

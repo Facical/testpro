@@ -5,12 +5,16 @@ namespace testpro.Models
 {
     public enum ObjectType
     {
-        Shelf,          // 선반
-        Refrigerator,   // 냉장고
-        Freezer,        // 냉동고 (추가)
-        Checkout,       // 계산대
-        DisplayStand,   // 진열대
-        Pillar          // 기둥
+        Shelf,              // 일반 선반
+        Refrigerator,       // 음료 냉장고 (오픈형)
+        Freezer,            // 냉동고
+        FreezerChest,       // 평면 냉동고 (아이스크림용)
+        Checkout,           // 계산대
+        DisplayStand,       // 진열대
+        DisplayRackDouble,  // 양면 진열대
+        RefrigeratorWall,   // 벽면 냉장고
+        CornerDisplay,      // 코너 진열대
+        Pillar              // 기둥
     }
 
     public class StoreObject
@@ -116,6 +120,39 @@ namespace testpro.Models
                     Fill = new SolidColorBrush(Color.FromRgb(128, 128, 128)); // 회색
                     HasLayerSupport = false;
                     ModelBasePath = "Models/Pillar/pillar.obj";
+                    break;
+
+                case ObjectType.FreezerChest:
+                    Width = 72;  // 6ft
+                    Length = 36; // 3ft  
+                    Height = 36; // 3ft (낮은 높이)
+                    Layers = 1;
+                    Fill = new SolidColorBrush(Color.FromRgb(180, 200, 220));
+                    HasLayerSupport = false;
+                    ModelBasePath = "Models/FreezerChest/freezer_chest.gltf";
+                    Temperature = -18.0;
+                    break;
+
+                case ObjectType.DisplayRackDouble:
+                    Width = 48;  // 4ft
+                    Length = 36; // 3ft (양면이므로 더 깊음)
+                    Height = 72; // 6ft
+                    Layers = 5;  // 보통 5층
+                    Fill = new SolidColorBrush(Color.FromRgb(50, 50, 50)); // 검은색 프레임
+                    HasLayerSupport = true;
+                    ModelBasePath = "Models/DisplayRack/display_rack_double.gltf";
+                    ShelfModelPath = "Models/DisplayRack/shelf_yellow.gltf"; // 노란색 선반
+                    break;
+
+                case ObjectType.RefrigeratorWall:
+                    Width = 96;  // 8ft (긴 벽면형)
+                    Length = 24; // 2ft
+                    Height = 84; // 7ft
+                    Layers = 6;  // 6층
+                    Fill = new SolidColorBrush(Color.FromRgb(30, 30, 30)); // 검은색
+                    HasLayerSupport = true;
+                    ModelBasePath = "Models/Refrigerator/refrigerator_wall.gltf";
+                    Temperature = 4.0;
                     break;
             }
 

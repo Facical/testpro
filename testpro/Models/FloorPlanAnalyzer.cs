@@ -33,6 +33,26 @@ namespace testpro.Models
             public int Height => Bottom - Top;
         }
 
+        public enum DetectedObjectType
+        {
+            Unknown,
+            Wall,
+            Refrigerator,
+            RefrigeratorWall,    // 추가
+            Freezer,
+            FreezerChest,        // 추가
+            Shelf,
+            DisplayRackDouble,   // 추가
+            Chair,
+            Desk,
+            Microwave,
+            Door,
+            Window,
+            Checkout,
+            DisplayStand,
+            Pillar
+        }
+
         // 기존 메서드 (호환성 유지)
         public List<WallLine> DetectOuterWalls(BitmapImage image)
         {
@@ -502,36 +522,46 @@ namespace testpro.Models
         }
 
         // 객체 타입 추측
+        // GuessObjectType 메서드 개선
         private DetectedObjectType GuessObjectType(Rect bounds)
         {
             double ratio = bounds.Width / bounds.Height;
             double area = bounds.Width * bounds.Height;
 
-            // 크기와 비율로 타입 추측
-            if (area < 1000)
+            // 크기와 비율로 더 정확한 타입 추측
+
+            // 평면 냉동고 (넓고 낮은 형태)
+            if (ratio > 1.5 && bounds.Height < 50 && area > 2000)
             {
-                return DetectedObjectType.Pillar; // 작은 객체는 기둥
+                return DetectedObjectType.FreezerChest;
             }
-            else if (ratio > 2.5 || ratio < 0.4)
+
+            // 벽면 냉장고 (매우 긴 형태)
+            if (ratio > 3.0 && area > 4000)
             {
-                // 매우 길쭉한 형태
-                return area > 3000 ? DetectedObjectType.DisplayStand : DetectedObjectType.Shelf;
+                return DetectedObjectType.RefrigeratorWall;
             }
-            else if (area > 6000)
+
+            // 양면 진열대 (정사각형에 가까운 중간 크기)
+            if (ratio > 0.8 && ratio < 1.5 && area > 2500 && area < 4000)
             {
-                // 큰 정사각형 형태
-                return DetectedObjectType.Checkout;
+                return DetectedObjectType.DisplayRackDouble;
             }
-            else if (area > 3000)
+
+            // 일반 냉장고 (세로가 긴 중간 크기)
+            if (ratio >= 0.4 && ratio <= 0.7 && area > 2000 && area < 3500)
             {
-                // 중간 크기
                 return DetectedObjectType.Refrigerator;
             }
-            else
+
+            // 일반 선반
+            if (ratio > 2.0 || ratio < 0.5)
             {
-                // 기본값
-                return DetectedObjectType.Shelf;
+                return area > 3000 ? DetectedObjectType.DisplayStand : DetectedObjectType.Shelf;
             }
+
+            // 기본값
+            return DetectedObjectType.Shelf;
         }
 
         // 겹침 확인

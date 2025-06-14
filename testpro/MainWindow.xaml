@@ -197,12 +197,12 @@
                         <!-- 이미지 불러오기 -->
                         <TextBlock Text="도면 이미지" Style="{StaticResource SectionHeaderStyle}"/>
                         <Button Content="이미지 불러오기" 
-            Click="LoadImage_Click"
-            Margin="5"
-            Padding="10,8"
-            Background="DarkGreen"
-            Foreground="White"
-            FontWeight="Bold"/>
+                            Click="LoadImage_Click"
+                            Margin="5"
+                            Padding="10,8"
+                            Background="DarkGreen"
+                            Foreground="White"
+                            FontWeight="Bold"/>
 
                         <TextBlock x:Name="LoadedImageName" 
                Text="불러온 이미지: 없음" 
@@ -324,6 +324,64 @@
                                     </ControlTemplate>
                                 </Button.Template>
                             </Button>
+                            <!-- 도면 불러오기 모드 패널 내의 객체 버튼들 섹션에 추가 -->
+                            <Button Content="양면진열대" 
+        Click="DisplayRackDoubleTool_Click"
+        Width="70" Height="70" 
+        Margin="2">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                    BorderBrush="Gray" 
+                    BorderThickness="1"
+                    CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="📚" FontSize="30" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock Text="{TemplateBinding Content}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button Content="평면냉동고" 
+        Click="FreezerChestTool_Click"
+        Width="70" Height="70" 
+        Margin="2">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                    BorderBrush="Gray" 
+                    BorderThickness="1"
+                    CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="🧊" FontSize="30" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock Text="{TemplateBinding Content}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button Content="벽면냉장고" 
+        Click="RefrigeratorWallTool_Click"
+        Width="70" Height="70" 
+        Margin="2">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                    BorderBrush="Gray" 
+                    BorderThickness="1"
+                    CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="🥤" FontSize="30" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock Text="{TemplateBinding Content}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
                         </WrapPanel>
 
                         <!-- 선택된 객체 속성 -->

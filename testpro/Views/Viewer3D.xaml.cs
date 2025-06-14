@@ -261,108 +261,23 @@ namespace testpro.Views
             _storeObjectsContainer.Content = objectsModel;
         }
 
-
+        // CreateStoreObject3D 메서드 수정
         private GeometryModel3D CreateStoreObject3D(StoreObject obj)
         {
-            try
-            {
-                // 위치와 크기를 피트 단위로 변환
-                var position = new Point3D(
-                    obj.Position.X / 12.0,
-                    obj.Position.Y / 12.0,
-                    0);
+            // 먼저 GLTF 로드 시도
+            var gltfModel = TryLoadGltfModel(obj);
+            if (gltfModel != null)
+                return gltfModel;
 
-                double width = (obj.IsHorizontal ? obj.Width : obj.Length) / 12.0;
-                double length = (obj.IsHorizontal ? obj.Length : obj.Width) / 12.0;
-                double height = obj.Height / 12.0;
+            // GLTF 실패시 OBJ 시도
+            var objModel = TryLoadObjModel(obj);
+            if (objModel != null)
+                return objModel;
 
-                var mesh = new MeshGeometry3D();
-
-                // 층별로 박스 생성
-                for (int layer = 0; layer < obj.Layers; layer++)
-                {
-                    double layerHeight = height / obj.Layers;
-                    double z = layer * layerHeight;
-
-                    // 각 층의 8개 정점
-                    int baseIndex = mesh.Positions.Count;
-
-                    // 하단 4개 정점
-                    mesh.Positions.Add(new Point3D(position.X, position.Y, z));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y, z));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y + length, z));
-                    mesh.Positions.Add(new Point3D(position.X, position.Y + length, z));
-
-                    // 상단 4개 정점
-                    mesh.Positions.Add(new Point3D(position.X, position.Y, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y + length, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X, position.Y + length, z + layerHeight));
-
-                    // 삼각형 인덱스
-                    int[] indices = {
-                // 바닥
-                baseIndex+0, baseIndex+2, baseIndex+1,
-                baseIndex+0, baseIndex+3, baseIndex+2,
-                // 천장
-                baseIndex+4, baseIndex+5, baseIndex+6,
-                baseIndex+4, baseIndex+6, baseIndex+7,
-                // 앞면
-                baseIndex+0, baseIndex+1, baseIndex+5,
-                baseIndex+0, baseIndex+5, baseIndex+4,
-                // 뒷면
-                baseIndex+2, baseIndex+3, baseIndex+7,
-                baseIndex+2, baseIndex+7, baseIndex+6,
-                // 왼쪽
-                baseIndex+0, baseIndex+4, baseIndex+7,
-                baseIndex+0, baseIndex+7, baseIndex+3,
-                // 오른쪽
-                baseIndex+1, baseIndex+2, baseIndex+6,
-                baseIndex+1, baseIndex+6, baseIndex+5
-            };
-
-                    foreach (var idx in indices)
-                        mesh.TriangleIndices.Add(idx);
-                }
-
-                // 객체 타입별 색상 설정
-                Color objColor = Colors.Gray;
-                switch (obj.Type)
-                {
-                    case ObjectType.Shelf:
-                        objColor = Color.FromRgb(160, 82, 45); // 시에나 브라운
-                        break;
-                    case ObjectType.Refrigerator:
-                        objColor = Color.FromRgb(230, 230, 250); // 라벤더
-                        break;
-                    case ObjectType.Freezer:
-                        objColor = Color.FromRgb(200, 220, 255); // 연한 파랑
-                        break;
-                    case ObjectType.Checkout:
-                        objColor = Color.FromRgb(192, 192, 192); // 실버
-                        break;
-                    case ObjectType.DisplayStand:
-                        objColor = Color.FromRgb(245, 222, 179); // 밀색
-                        break;
-                    case ObjectType.Pillar:
-                        objColor = Color.FromRgb(128, 128, 128); // 회색
-                        break;
-                }
-
-                // 매트한 재질
-                var material = new DiffuseMaterial(new SolidColorBrush(objColor));
-
-                var model = new GeometryModel3D(mesh, material);
-                model.BackMaterial = material;
-
-                return model;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"매장 객체 3D 생성 오류: {ex.Message}");
-                return null;
-            }
+            // 둘 다 실패시 기본 박스 모델
+            return CreateDefaultStoreObject3D(obj);
         }
+
 
         // OBJ 파일 로드 메서드
         private GeometryModel3D TryLoadObjModel(StoreObject obj)
@@ -605,6 +520,163 @@ namespace testpro.Views
             {
                 targetMesh.TextureCoordinates.Add(texCoord);
             }
+        }
+
+        private GeometryModel3D TryLoadGltfModel(StoreObject obj)
+        {
+            try
+            {
+                string modelPath = obj.ModelBasePath;
+                if (string.IsNullOrEmpty(modelPath))
+                    return null;
+
+                // GLTF 확장자 체크
+                if (!modelPath.EndsWith(".gltf") && !modelPath.EndsWith(".glb"))
+                    return TryLoadObjModel(obj); // 기존 OBJ 로더로 폴백
+
+                // 실제 파일 경로
+                string basePath = System.IO.Path.GetDirectoryName(
+                    System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string fullPath = System.IO.Path.Combine(basePath, modelPath);
+
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"GLTF 파일을 찾을 수 없음: {fullPath}");
+                    return null;
+                }
+
+                // GLTF 로드
+                var model3DGroup = GltfModelLoader.LoadGltfModel(fullPath);
+                if (model3DGroup == null)
+                    return null;
+
+                // 특별한 재질 처리
+                Model3DGroup processedGroup = new Model3DGroup();
+
+                foreach (var child in model3DGroup.Children)
+                {
+                    if (child is GeometryModel3D geoModel)
+                    {
+                        // 객체 타입별 특수 재질 적용
+                        switch (obj.Type)
+                        {
+                            case ObjectType.Refrigerator:
+                            case ObjectType.RefrigeratorWall:
+                                ApplyRefrigeratorMaterials(geoModel, obj);
+                                break;
+                            case ObjectType.FreezerChest:
+                                ApplyFreezerChestMaterials(geoModel);
+                                break;
+                            case ObjectType.DisplayRackDouble:
+                                ApplyDisplayRackMaterials(geoModel);
+                                break;
+                        }
+                        processedGroup.Children.Add(geoModel);
+                    }
+                }
+
+                // 변환 적용
+                var transform = CreateObjectTransform(obj);
+                processedGroup.Transform = transform;
+
+                return CreateCombinedModel(processedGroup);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GLTF 로드 실패: {ex.Message}");
+                return null;
+            }
+        }
+
+
+        private void ApplyRefrigeratorMaterials(GeometryModel3D model, StoreObject obj)
+        {
+            var mesh = model.Geometry as MeshGeometry3D;
+            if (mesh == null) return;
+
+            var materialGroup = new MaterialGroup();
+
+            // 본체 재질 (검은색 프레임)
+            var bodyMaterial = new MaterialGroup();
+            bodyMaterial.Children.Add(new DiffuseMaterial(
+                new SolidColorBrush(Color.FromRgb(30, 30, 30))
+            ));
+            bodyMaterial.Children.Add(new SpecularMaterial(
+                new SolidColorBrush(Colors.White), 60
+            ));
+
+            // LED 조명 효과
+            bodyMaterial.Children.Add(new EmissiveMaterial(
+                new SolidColorBrush(Color.FromArgb(20, 200, 220, 255))
+            ));
+
+            // 유리문 재질 (투명도 있는 파란빛)
+            if (obj.Type == ObjectType.RefrigeratorWall)
+            {
+                var glassMaterial = new MaterialGroup();
+
+                // 반투명 유리
+                var glassBrush = new SolidColorBrush(Color.FromArgb(80, 200, 220, 255));
+                glassBrush.Opacity = 0.3;
+                glassMaterial.Children.Add(new DiffuseMaterial(glassBrush));
+
+                // 강한 반사
+                glassMaterial.Children.Add(new SpecularMaterial(
+                    new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                    100
+                ));
+
+                model.Material = glassMaterial;
+                model.BackMaterial = glassMaterial;
+            }
+            else
+            {
+                model.Material = bodyMaterial;
+                model.BackMaterial = bodyMaterial;
+            }
+        }
+
+        private void ApplyFreezerChestMaterials(GeometryModel3D model)
+        {
+            var materialGroup = new MaterialGroup();
+
+            // 메탈릭 그레이
+            materialGroup.Children.Add(new DiffuseMaterial(
+                new SolidColorBrush(Color.FromRgb(180, 180, 190))
+            ));
+
+            // 높은 반사도
+            materialGroup.Children.Add(new SpecularMaterial(
+                new SolidColorBrush(Colors.White), 80
+            ));
+
+            // 슬라이딩 유리 덮개 효과
+            var glassCover = new MaterialGroup();
+            var glassBrush = new SolidColorBrush(Color.FromArgb(100, 220, 230, 255));
+            glassCover.Children.Add(new DiffuseMaterial(glassBrush));
+            glassCover.Children.Add(new SpecularMaterial(Brushes.White, 120));
+
+            model.Material = materialGroup;
+            model.BackMaterial = materialGroup;
+        }
+
+        // 양면 진열대 재질
+        private void ApplyDisplayRackMaterials(GeometryModel3D model)
+        {
+            var materialGroup = new MaterialGroup();
+
+            // 검은색 철제 프레임
+            materialGroup.Children.Add(new DiffuseMaterial(
+                new SolidColorBrush(Color.FromRgb(40, 40, 40))
+            ));
+
+            // 약간의 금속 광택
+            materialGroup.Children.Add(new SpecularMaterial(
+                new SolidColorBrush(Colors.Gray), 30
+            ));
+
+            model.Material = materialGroup;
+            model.BackMaterial = materialGroup;
         }
 
         // 타입별 재질 가져오기

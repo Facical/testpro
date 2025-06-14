@@ -27,14 +27,21 @@
             <ModelVisual3D>
                 <ModelVisual3D.Content>
                     <Model3DGroup>
-                        <!-- 주변광 (부드럽게) -->
-                        <AmbientLight Color="#E0E0E0" />
+                        <!-- 주변광 (더 밝게) -->
+                        <AmbientLight Color="#F0F0F0" />
 
-                        <!-- 주 방향광 (위에서 아래로, 부드럽게) -->
-                        <DirectionalLight Color="#F0F0F0" Direction="-0.3,-0.3,-1" />
+                        <!-- 메인 조명 (위에서 아래로) -->
+                        <DirectionalLight Color="#FFFFFF" Direction="-0.3,-0.3,-1" />
 
-                        <!-- 보조 방향광 (측면, 약하게) -->
-                        <DirectionalLight Color="#D0D0D0" Direction="1,0,-0.5" />
+                        <!-- 보조 조명 (측면) -->
+                        <DirectionalLight Color="#E0E0E0" Direction="1,0,-0.5" />
+
+                        <!-- 냉장고 LED 효과를 위한 포인트 라이트 -->
+                        <PointLight Color="#B0D0FF" 
+                    Position="0,0,50" 
+                    Range="200"
+                    ConstantAttenuation="0.5"
+                    LinearAttenuation="0.1"/>
                     </Model3DGroup>
                 </ModelVisual3D.Content>
             </ModelVisual3D>

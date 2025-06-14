@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows.Media.Media3D;
 using testpro.Models;
 
 namespace testpro.Services
@@ -12,6 +13,9 @@ namespace testpro.Services
         public List<Wall> Walls { get; } = new List<Wall>();
         public List<Room> Rooms { get; } = new List<Room>();
         public List<StoreObject> StoreObjects { get; } = new List<StoreObject>();
+
+        private Dictionary<string, Model3DGroup> _modelCache = new Dictionary<string, Model3DGroup>();
+
 
         private const double SnapDistance = 10.0;
 
@@ -28,6 +32,19 @@ namespace testpro.Services
                 _scaleX = value;
                 OnPropertyChanged();
             }
+        }
+
+        public Model3DGroup GetCachedModel(string modelPath)
+        {
+            if (_modelCache.ContainsKey(modelPath))
+                return _modelCache[modelPath].Clone();
+
+            // 모델 로드
+            var model = LoadModel(modelPath);
+            if (model != null)
+                _modelCache[modelPath] = model;
+
+            return model;
         }
 
         public double ScaleY

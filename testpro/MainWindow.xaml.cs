@@ -117,6 +117,28 @@ namespace testpro
             }
         }
 
+        // 새로운 객체 도구 클릭 이벤트들
+        private void DisplayRackDoubleTool_Click(object sender, RoutedEventArgs e)
+        {
+            _currentObjectTool = "DisplayRackDouble";
+            _viewModel.CurrentTool = "PlaceObject";
+            _viewModel.StatusText = "양면 진열대 배치: 영역을 드래그하여 지정하세요";
+        }
+
+        private void FreezerChestTool_Click(object sender, RoutedEventArgs e)
+        {
+            _currentObjectTool = "FreezerChest";
+            _viewModel.CurrentTool = "PlaceObject";
+            _viewModel.StatusText = "평면 냉동고 배치: 영역을 드래그하여 지정하세요";
+        }
+
+        private void RefrigeratorWallTool_Click(object sender, RoutedEventArgs e)
+        {
+            _currentObjectTool = "RefrigeratorWall";
+            _viewModel.CurrentTool = "PlaceObject";
+            _viewModel.StatusText = "벽면 냉장고 배치: 영역을 드래그하여 지정하세요";
+        }
+
         private void DetectObjects_Click(object sender, RoutedEventArgs e)
         {
             if (_loadedFloorPlan == null)

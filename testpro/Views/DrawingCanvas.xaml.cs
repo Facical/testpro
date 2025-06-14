@@ -686,9 +686,8 @@ namespace testpro.Views
                 var width = Math.Abs(position.X - _objectStartPoint.X);
                 var height = Math.Abs(position.Y - _objectStartPoint.Y);
 
-                if (width > 10 && height > 10) // 최소 크기 체크
+                if (width > 10 && height > 10)
                 {
-                    // MainWindow 인스턴스를 통해 호출
                     var objectType = MainWindow?.GetCurrentObjectTool();
                     if (!string.IsNullOrEmpty(objectType))
                     {
@@ -704,17 +703,25 @@ namespace testpro.Views
                             case "Freezer":
                                 type = ObjectType.Freezer;
                                 break;
+                            case "FreezerChest":
+                                type = ObjectType.FreezerChest;
+                                break;
                             case "Checkout":
                                 type = ObjectType.Checkout;
                                 break;
                             case "DisplayStand":
                                 type = ObjectType.DisplayStand;
                                 break;
+                            case "DisplayRackDouble":
+                                type = ObjectType.DisplayRackDouble;
+                                break;
+                            case "RefrigeratorWall":
+                                type = ObjectType.RefrigeratorWall;
+                                break;
                             default:
                                 return;
                         }
 
-                        // 객체 생성
                         var topLeft = new Point2D(
                             Math.Min(_objectStartPoint.X, position.X),
                             Math.Min(_objectStartPoint.Y, position.Y)
@@ -724,14 +731,11 @@ namespace testpro.Views
                         obj.Width = width;
                         obj.Length = height;
 
-                        // MainWindow 인스턴스 메서드 호출
                         MainWindow?.OnObjectPlaced(obj);
-
                         RedrawAll();
                     }
                 }
 
-                // Clean up
                 TempCanvas.Children.Remove(_objectPreview);
                 _objectPreview = null;
                 _isDrawingObject = false;
