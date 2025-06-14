@@ -33,25 +33,25 @@ namespace testpro.Models
             public int Height => Bottom - Top;
         }
 
-        public enum DetectedObjectType
-        {
-            Unknown,
-            Wall,
-            Refrigerator,
-            RefrigeratorWall,    // 추가
-            Freezer,
-            FreezerChest,        // 추가
-            Shelf,
-            DisplayRackDouble,   // 추가
-            Chair,
-            Desk,
-            Microwave,
-            Door,
-            Window,
-            Checkout,
-            DisplayStand,
-            Pillar
-        }
+        //public enum DetectedObjectType
+        //{
+        //    Unknown,
+        //    Wall,
+        //    Refrigerator,
+        //    RefrigeratorWall,    // 추가
+        //    Freezer,
+        //    FreezerChest,        // 추가
+        //    Shelf,
+        //    DisplayRackDouble,   // 추가
+        //    Chair,
+        //    Desk,
+        //    Microwave,
+        //    Door,
+        //    Window,
+        //    Checkout,
+        //    DisplayStand,
+        //    Pillar
+        //}
 
         // 기존 메서드 (호환성 유지)
         public List<WallLine> DetectOuterWalls(BitmapImage image)
@@ -205,6 +205,21 @@ namespace testpro.Models
                 Right = maxX,
                 Bottom = maxY
             };
+        }
+
+        public List<DetectedObject> AnalyzeFloorPlan(System.Drawing.Bitmap bitmap)
+        {
+            var detectedObjects = new List<DetectedObject>();
+
+            // 간단한 더미 구현
+            detectedObjects.Add(new DetectedObject
+            {
+                Type = DetectedObjectType.Refrigerator,  // Models.DetectedObjectType 사용
+                Bounds = new Rect(100, 100, 48, 36),
+                Confidence = 0.95
+            });
+
+            return detectedObjects;
         }
 
         // 개선된 객체 감지 - 외곽선 기반

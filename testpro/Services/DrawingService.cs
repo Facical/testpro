@@ -1,6 +1,8 @@
-﻿using System;
+﻿using HelixToolkit.Wpf;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Media.Media3D;
@@ -31,6 +33,44 @@ namespace testpro.Services
                 if (value <= 0) value = 1.0; // 0 이하 방지
                 _scaleX = value;
                 OnPropertyChanged();
+            }
+        }
+
+        public Model3D LoadModel(string modelPath)
+        {
+            try
+            {
+                if (!File.Exists(modelPath))
+                {
+                    System.Diagnostics.Debug.WriteLine($"모델 파일을 찾을 수 없음: {modelPath}");
+                    return null;
+                }
+
+                string extension = Path.GetExtension(modelPath).ToLower();
+
+                switch (extension)
+                {
+                    case ".obj":
+                        var objReader = new ObjReader();
+                        return objReader.Read(modelPath);
+
+                    case ".stl":
+                        var stlReader = new StLReader();
+                        return stlReader.Read(modelPath);
+
+                    case ".3ds":
+                        var reader3ds = new StudioReader();
+                        return reader3ds.Read(modelPath);
+
+                    default:
+                        System.Diagnostics.Debug.WriteLine($"지원하지 않는 파일 형식: {extension}");
+                        return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"모델 로드 오류: {ex.Message}");
+                return null;
             }
         }
 

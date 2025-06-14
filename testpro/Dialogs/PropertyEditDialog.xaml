@@ -1,0 +1,177 @@
+﻿<Window x:Class="testpro.Dialogs.PropertyEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="객체 속성 편집" 
+        Height="600" 
+        Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 헤더 -->
+        <Border Grid.Row="0" 
+                Background="#F0F0F0" 
+                CornerRadius="5" 
+                Padding="10" 
+                Margin="0,0,0,10">
+            <StackPanel>
+                <TextBlock Text="객체 타입:" FontWeight="Bold"/>
+                <TextBlock x:Name="TypeText" FontSize="16" Margin="0,5,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 속성 편집 영역 -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- 크기 설정 -->
+                <GroupBox Header="크기 (피트)" Margin="0,0,0,10">
+                    <Grid Margin="5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="너비:" Grid.Row="0" VerticalAlignment="Center"/>
+                        <TextBox x:Name="WidthTextBox" Grid.Row="0" Grid.Column="1" Margin="5,2"/>
+
+                        <TextBlock Text="깊이:" Grid.Row="1" VerticalAlignment="Center"/>
+                        <TextBox x:Name="LengthTextBox" Grid.Row="1" Grid.Column="1" Margin="5,2"/>
+
+                        <TextBlock Text="높이:" Grid.Row="2" VerticalAlignment="Center"/>
+                        <TextBox x:Name="HeightTextBox" Grid.Row="2" Grid.Column="1" Margin="5,2"/>
+                    </Grid>
+                </GroupBox>
+
+                <!-- 회전 -->
+                <GroupBox Header="회전" Margin="0,0,0,10">
+                    <StackPanel Margin="5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="50"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="RotationSlider" 
+                                    Minimum="0" 
+                                    Maximum="360" 
+                                    TickFrequency="15" 
+                                    IsSnapToTickEnabled="True"
+                                    ValueChanged="RotationSlider_ValueChanged"/>
+                            <TextBlock x:Name="RotationText" 
+                                       Grid.Column="1" 
+                                       Text="0°" 
+                                       VerticalAlignment="Center" 
+                                       HorizontalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 방향 -->
+                <GroupBox Header="배치 방향" Margin="0,0,0,10">
+                    <CheckBox x:Name="OrientationCheckBox" 
+                              Content="가로 방향" 
+                              Margin="5" 
+                              IsChecked="True"/>
+                </GroupBox>
+
+                <!-- 층수 (조건부) -->
+                <GroupBox x:Name="LayersPanel" Header="층수" Margin="0,0,0,10">
+                    <StackPanel Margin="5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="50"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="LayersSlider" 
+                                    Minimum="1" 
+                                    Maximum="5" 
+                                    TickFrequency="1" 
+                                    IsSnapToTickEnabled="True"
+                                    ValueChanged="LayersSlider_ValueChanged"/>
+                            <TextBlock x:Name="LayersText" 
+                                       Grid.Column="1" 
+                                       Text="1" 
+                                       VerticalAlignment="Center" 
+                                       HorizontalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 온도 (조건부) -->
+                <GroupBox x:Name="TemperaturePanel" Header="온도 설정" Margin="0,0,0,10">
+                    <StackPanel Margin="5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="60"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="TemperatureSlider" 
+                                    Minimum="-20" 
+                                    Maximum="10" 
+                                    TickFrequency="1" 
+                                    IsSnapToTickEnabled="True"
+                                    ValueChanged="TemperatureSlider_ValueChanged"/>
+                            <TextBlock x:Name="TemperatureText" 
+                                       Grid.Column="1" 
+                                       Text="4°C" 
+                                       VerticalAlignment="Center" 
+                                       HorizontalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 카테고리 코드 -->
+                <GroupBox Header="카테고리 코드" Margin="0,0,0,10">
+                    <TextBox x:Name="CategoryCodeTextBox" Margin="5" Text="GEN"/>
+                </GroupBox>
+
+                <!-- 메타데이터 -->
+                <GroupBox Header="정보" Margin="0,0,0,10">
+                    <Grid Margin="5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="생성일:" Grid.Row="0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="CreatedText" Grid.Row="0" Grid.Column="1" Margin="5,2"/>
+
+                        <TextBlock Text="수정일:" Grid.Row="1" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ModifiedText" Grid.Row="1" Grid.Column="1" Margin="5,2"/>
+                    </Grid>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 버튼 -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    Margin="0,10,0,0">
+            <Button x:Name="OkButton" 
+                    Content="확인" 
+                    Width="80" 
+                    Height="30" 
+                    Margin="0,0,10,0"
+                    Click="OkButton_Click"/>
+            <Button x:Name="CancelButton" 
+                    Content="취소" 
+                    Width="80" 
+                    Height="30"
+                    Click="CancelButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

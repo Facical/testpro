@@ -1,33 +1,58 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
-using testpro.Services;
+using testpro.Models;
 
 namespace testpro.ViewModels
 {
     public enum ViewMode
     {
-        View2D,
-        View3D
+        Mode2D,
+        Mode3D
     }
 
     public class MainViewModel : INotifyPropertyChanged
     {
-        private DrawingService _drawingService;
-        private string _currentTool = "Select";
-        private string _statusText = "도구를 선택하세요";
-        private ViewMode _currentViewMode = ViewMode.View2D;
-
-        public DrawingService DrawingService
+        // 컬렉션
+        private ObservableCollection<StoreObject> _storeObjects;
+        public ObservableCollection<StoreObject> StoreObjects
         {
-            get => _drawingService;
+            get => _storeObjects;
             set
             {
-                _drawingService = value;
+                _storeObjects = value;
                 OnPropertyChanged();
             }
         }
 
+        private ObservableCollection<Wall> _walls;
+        public ObservableCollection<Wall> Walls
+        {
+            get => _walls;
+            set
+            {
+                _walls = value;
+                OnPropertyChanged();
+            }
+        }
+
+        // 선택된 객체
+        private StoreObject _selectedObject;
+        public StoreObject SelectedObject
+        {
+            get => _selectedObject;
+            set
+            {
+                _selectedObject = value;
+                OnPropertyChanged();
+                UpdateStatusText();
+            }
+        }
+
+        // 현재 도구
+        private string _currentTool = "Select";
         public string CurrentTool
         {
             get => _currentTool;
@@ -39,6 +64,25 @@ namespace testpro.ViewModels
             }
         }
 
+        // 뷰 모드
+        private ViewMode _currentViewMode = ViewMode.Mode2D;
+        public ViewMode CurrentViewMode
+        {
+            get => _currentViewMode;
+            set
+            {
+                _currentViewMode = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(Is2DMode));
+                OnPropertyChanged(nameof(Is3DMode));
+            }
+        }
+
+        public bool Is2DMode => CurrentViewMode == ViewMode.Mode2D;
+        public bool Is3DMode => CurrentViewMode == ViewMode.Mode3D;
+
+        // 상태 텍스트
+        private string _statusText = "준비";
         public string StatusText
         {
             get => _statusText;
@@ -49,95 +93,118 @@ namespace testpro.ViewModels
             }
         }
 
-        public ViewMode CurrentViewMode
+        // 선택된 객체 타입 (배치용)
+        private ObjectType? _selectedObjectType;
+        public ObjectType? SelectedObjectType
         {
-            get => _currentViewMode;
+            get => _selectedObjectType;
             set
             {
-                _currentViewMode = value;
+                _selectedObjectType = value;
                 OnPropertyChanged();
-                UpdateStatusText();
+
+                if (value.HasValue)
+                {
+                    CurrentTool = "PlaceObject";
+                }
             }
         }
 
-        // 뷰 모드 관련 속성들
-        public bool Is2DMode => CurrentViewMode == ViewMode.View2D;
-        public bool Is3DMode => CurrentViewMode == ViewMode.View3D;
+        // 성능 정보
+        private string _performanceInfo;
+        public string PerformanceInfo
+        {
+            get => _performanceInfo;
+            set
+            {
+                _performanceInfo = value;
+                OnPropertyChanged();
+            }
+        }
 
-        public ICommand SelectToolCommand { get; }
-        public ICommand ClearCommand { get; }
-        public ICommand Switch2DCommand { get; }
-        public ICommand Switch3DCommand { get; }
-
+        // 생성자
         public MainViewModel()
         {
-            DrawingService = new DrawingService();
+            StoreObjects = new ObservableCollection<StoreObject>();
+            Walls = new ObservableCollection<Wall>();
 
-            // DrawingService의 변경사항을 감지
-            DrawingService.PropertyChanged += (s, e) =>
-            {
-                // DrawingService가 변경되면 전체 뷰모델의 변경을 알림
-                OnPropertyChanged(nameof(DrawingService));
-            };
-
-            SelectToolCommand = new RelayCommand(() => CurrentTool = "Select");
-            ClearCommand = new RelayCommand(() => {
-                DrawingService.Clear();
-                CurrentTool = "Select";
-            });
-
-            // 뷰 모드 전환 명령
-            Switch2DCommand = new RelayCommand(() => CurrentViewMode = ViewMode.View2D);
-            Switch3DCommand = new RelayCommand(() => CurrentViewMode = ViewMode.View3D);
-
-            CurrentTool = "Select";
+            // 컬렉션 변경 이벤트 구독
+            StoreObjects.CollectionChanged += (s, e) => UpdateStatusText();
+            Walls.CollectionChanged += (s, e) => UpdateStatusText();
         }
 
+        // 상태 텍스트 업데이트
         private void UpdateStatusText()
         {
-            var modeText = CurrentViewMode == ViewMode.View2D ? "2D" : "3D";
-
-            switch (CurrentTool)
+            if (SelectedObject != null)
             {
-                case "WallStraight":
-                    StatusText = $"[{modeText}] 직선 벽 그리기: 시작점을 클릭하세요";
-                    break;
-                case "Select":
-                    StatusText = $"[{modeText}] 선택 도구 활성화";
-                    break;
-                default:
-                    StatusText = $"[{modeText}] 도구를 선택하세요";
-                    break;
+                StatusText = $"선택됨: {SelectedObject.GetDisplayName()} | 도구: {CurrentTool}";
+            }
+            else
+            {
+                StatusText = $"객체: {StoreObjects.Count}개, 벽: {Walls.Count}개 | 도구: {CurrentTool}";
             }
         }
 
+        // 3D 뷰 업데이트
+        public void Update3DView()
+        {
+            OnPropertyChanged(nameof(StoreObjects));
+        }
+
+        // 통계 정보
+        public string GetStatistics()
+        {
+            var stats = new System.Text.StringBuilder();
+            stats.AppendLine($"총 객체 수: {StoreObjects.Count}");
+
+            var groupedByType = StoreObjects.GroupBy(o => o.Type);
+            foreach (var group in groupedByType)
+            {
+                stats.AppendLine($"- {GetObjectTypeName(group.Key)}: {group.Count()}개");
+            }
+
+            stats.AppendLine($"벽 개수: {Walls.Count}");
+
+            return stats.ToString();
+        }
+
+        private string GetObjectTypeName(ObjectType type)
+        {
+            switch (type)
+            {
+                case ObjectType.Shelf: return "선반";
+                case ObjectType.Refrigerator: return "냉장고";
+                case ObjectType.Freezer: return "냉동고";
+                case ObjectType.Checkout: return "계산대";
+                case ObjectType.DisplayStand: return "진열대";
+                case ObjectType.Pillar: return "기둥";
+                default: return "기타";
+            }
+        }
+
+        // PropertyChanged 구현
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-            // 뷰 모드 관련 속성들 자동 업데이트
-            if (propertyName == nameof(CurrentViewMode))
-            {
-                OnPropertyChanged(nameof(Is2DMode));
-                OnPropertyChanged(nameof(Is3DMode));
-            }
         }
     }
 
+    // RelayCommand 구현
     public class RelayCommand : ICommand
     {
-        private readonly System.Action _execute;
-        private readonly System.Func<bool> _canExecute;
+        private readonly Action _execute;
+        private readonly Func<bool> _canExecute;
 
-        public RelayCommand(System.Action execute, System.Func<bool> canExecute = null)
+        public RelayCommand(Action execute, Func<bool> canExecute = null)
         {
-            _execute = execute ?? throw new System.ArgumentNullException(nameof(execute));
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
         }
 
-        public event System.EventHandler CanExecuteChanged
+        public event EventHandler CanExecuteChanged
         {
             add { CommandManager.RequerySuggested += value; }
             remove { CommandManager.RequerySuggested -= value; }
@@ -151,6 +218,34 @@ namespace testpro.ViewModels
         public void Execute(object parameter)
         {
             _execute();
+        }
+    }
+
+    public class RelayCommand<T> : ICommand
+    {
+        private readonly Action<T> _execute;
+        private readonly Predicate<T> _canExecute;
+
+        public RelayCommand(Action<T> execute, Predicate<T> canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public event EventHandler CanExecuteChanged
+        {
+            add { CommandManager.RequerySuggested += value; }
+            remove { CommandManager.RequerySuggested -= value; }
+        }
+
+        public bool CanExecute(object parameter)
+        {
+            return _canExecute?.Invoke((T)parameter) ?? true;
+        }
+
+        public void Execute(object parameter)
+        {
+            _execute((T)parameter);
         }
     }
 }

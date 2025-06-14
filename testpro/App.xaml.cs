@@ -25,6 +25,19 @@ public partial class App : Application
 
         // UI 스레드 블로킹 감지
         EnableUIThreadBlockingDetection();
+
+        // 전역 예외 처리
+        DispatcherUnhandledException += App_DispatcherUnhandledException;
+
+
+    }
+
+    private void App_DispatcherUnhandledException(object sender,
+      System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        MessageBox.Show($"예기치 않은 오류가 발생했습니다:\n{e.Exception.Message}",
+            "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+        e.Handled = true;
     }
 
     private void OnRendering(object sender, EventArgs e)
