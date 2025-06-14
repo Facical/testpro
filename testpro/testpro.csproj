@@ -8,6 +8,24 @@
 		<UseWPF>true</UseWPF>
 	</PropertyGroup>
 
+	<ItemGroup>
+	  <None Remove="Models\Refrigerator\beverage_refrigerator.mtl" />
+	  <None Remove="Models\Refrigerator\beverage_refrigerator.obj" />
+	  <None Remove="Models\Refrigerator\refrigerator_shelf.mtl" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="Models\Refrigerator\beverage_refrigerator.mtl">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Models\Refrigerator\beverage_refrigerator.obj">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Models\Refrigerator\refrigerator_shelf.mtl">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
+
 	<!-- .NET 8.0용 HelixToolkit 패키지들 -->
 	<ItemGroup>
 		<PackageReference Include="HelixToolkit.Wpf" Version="2.27.0" />
@@ -18,6 +36,5 @@
 	<ItemGroup>
 	  <Folder Include="Models\DisplayRack\" />
 	  <Folder Include="Models\FreezerChest\" />
-	  <Folder Include="Models\Refrigerator\" />
 	</ItemGroup>
 </Project>
