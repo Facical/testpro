@@ -70,8 +70,8 @@ namespace testpro.Models
                     Layers = 2;
                     Fill = new SolidColorBrush(Color.FromRgb(200, 200, 255)); // 연한 파랑
                     HasLayerSupport = true;
-                    ModelBasePath = "Models/Refrigerator/fridge_frame.obj";
-                    ShelfModelPath = "Models/Refrigerator/fridge_shelf.obj";
+                    ModelBasePath = "Models/Refrigerator/beverage_refrigerator.obj";
+                    ShelfModelPath = "Models/Refrigerator/refrigerator_shelf.obj";
                     Temperature = 4.0; // 섭씨 4도
                     break;
 

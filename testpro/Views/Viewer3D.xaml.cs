@@ -251,7 +251,7 @@ namespace testpro.Views
 
             foreach (var obj in _viewModel.DrawingService.StoreObjects)
             {
-                var object3D = CreateDefaultStoreObject3D(obj);
+                var object3D = CreateStoreObject3D(obj);
                 if (object3D != null)
                 {
                     objectsModel.Children.Add(object3D);
@@ -261,144 +261,116 @@ namespace testpro.Views
             _storeObjectsContainer.Content = objectsModel;
         }
 
-
-        private GeometryModel3D CreateStoreObject3D(StoreObject obj)
+        // 객체 생성 로직 통합
+        private Model3D CreateStoreObject3D(StoreObject obj)
         {
-            try
+            // 1. OBJ 모델 로드 시도
+            if (!string.IsNullOrEmpty(obj.ModelBasePath))
             {
-                // 위치와 크기를 피트 단위로 변환
-                var position = new Point3D(
-                    obj.Position.X / 12.0,
-                    obj.Position.Y / 12.0,
-                    0);
-
-                double width = (obj.IsHorizontal ? obj.Width : obj.Length) / 12.0;
-                double length = (obj.IsHorizontal ? obj.Length : obj.Width) / 12.0;
-                double height = obj.Height / 12.0;
-
-                var mesh = new MeshGeometry3D();
-
-                // 층별로 박스 생성
-                for (int layer = 0; layer < obj.Layers; layer++)
+                var loadedModel = TryLoadObjModel(obj);
+                if (loadedModel != null)
                 {
-                    double layerHeight = height / obj.Layers;
-                    double z = layer * layerHeight;
-
-                    // 각 층의 8개 정점
-                    int baseIndex = mesh.Positions.Count;
-
-                    // 하단 4개 정점
-                    mesh.Positions.Add(new Point3D(position.X, position.Y, z));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y, z));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y + length, z));
-                    mesh.Positions.Add(new Point3D(position.X, position.Y + length, z));
-
-                    // 상단 4개 정점
-                    mesh.Positions.Add(new Point3D(position.X, position.Y, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y + length, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X, position.Y + length, z + layerHeight));
-
-                    // 삼각형 인덱스
-                    int[] indices = {
-                // 바닥
-                baseIndex+0, baseIndex+2, baseIndex+1,
-                baseIndex+0, baseIndex+3, baseIndex+2,
-                // 천장
-                baseIndex+4, baseIndex+5, baseIndex+6,
-                baseIndex+4, baseIndex+6, baseIndex+7,
-                // 앞면
-                baseIndex+0, baseIndex+1, baseIndex+5,
-                baseIndex+0, baseIndex+5, baseIndex+4,
-                // 뒷면
-                baseIndex+2, baseIndex+3, baseIndex+7,
-                baseIndex+2, baseIndex+7, baseIndex+6,
-                // 왼쪽
-                baseIndex+0, baseIndex+4, baseIndex+7,
-                baseIndex+0, baseIndex+7, baseIndex+3,
-                // 오른쪽
-                baseIndex+1, baseIndex+2, baseIndex+6,
-                baseIndex+1, baseIndex+6, baseIndex+5
-            };
-
-                    foreach (var idx in indices)
-                        mesh.TriangleIndices.Add(idx);
+                    return loadedModel;
                 }
-
-                // 객체 타입별 색상 설정
-                Color objColor = Colors.Gray;
-                switch (obj.Type)
-                {
-                    case ObjectType.Shelf:
-                        objColor = Color.FromRgb(160, 82, 45); // 시에나 브라운
-                        break;
-                    case ObjectType.Refrigerator:
-                        objColor = Color.FromRgb(230, 230, 250); // 라벤더
-                        break;
-                    case ObjectType.Freezer:
-                        objColor = Color.FromRgb(200, 220, 255); // 연한 파랑
-                        break;
-                    case ObjectType.Checkout:
-                        objColor = Color.FromRgb(192, 192, 192); // 실버
-                        break;
-                    case ObjectType.DisplayStand:
-                        objColor = Color.FromRgb(245, 222, 179); // 밀색
-                        break;
-                    case ObjectType.Pillar:
-                        objColor = Color.FromRgb(128, 128, 128); // 회색
-                        break;
-                }
-
-                // 매트한 재질
-                var material = new DiffuseMaterial(new SolidColorBrush(objColor));
-
-                var model = new GeometryModel3D(mesh, material);
-                model.BackMaterial = material;
-
-                return model;
+                System.Diagnostics.Debug.WriteLine($"OBJ 모델 로드 실패, 기본 박스로 대체: {obj.ModelBasePath}");
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"매장 객체 3D 생성 오류: {ex.Message}");
-                return null;
-            }
+
+            // 2. OBJ 로드 실패 시 기본 박스 형태로 대체
+            return CreateDefaultStoreObject3D(obj);
         }
 
-        // OBJ 파일 로드 메서드
-        private GeometryModel3D TryLoadObjModel(StoreObject obj)
+        // *** 수정된 핵심 로직 ***
+        private Model3D TryLoadObjModel(StoreObject obj)
         {
             try
             {
-                // 모델 파일 경로 결정
-                string modelFileName = GetModelFileName(obj);
-                if (string.IsNullOrEmpty(modelFileName))
-                    return null;
+                string basePath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string baseModelPath = Path.Combine(basePath, obj.ModelBasePath);
 
-                // 프로젝트 내 Models 폴더 경로
-                string basePath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string modelPath = System.IO.Path.Combine(basePath, "Models", modelFileName);
-
-                if (!System.IO.File.Exists(modelPath))
+                if (!File.Exists(baseModelPath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"모델 파일을 찾을 수 없음: {modelPath}");
+                    System.Diagnostics.Debug.WriteLine($"모델 파일을 찾을 수 없음: {baseModelPath}");
                     return null;
                 }
 
-                // HelixToolkit을 사용한 OBJ 로드
-                var objReader = new HelixToolkit.Wpf.ObjReader();
-                var model3DGroup = objReader.Read(modelPath);
+                var objReader = new ObjReader();
+                var finalModelGroup = new Model3DGroup();
 
-                if (model3DGroup == null || model3DGroup.Children.Count == 0)
-                    return null;
+                // 1. 기본 모델 로드
+                var baseModel = objReader.Read(baseModelPath);
+                if (baseModel == null) return null;
 
-                // 층수가 있는 객체 처리
-                if (obj.HasLayerSupport && obj.Layers > 1)
+                Rect3D originalBounds = baseModel.Bounds;
+                if (originalBounds.IsEmpty || originalBounds.SizeX == 0 || originalBounds.SizeY == 0 || originalBounds.SizeZ == 0)
                 {
-                    return CreateLayeredModel(obj, model3DGroup);
+                    originalBounds = new Rect3D(-0.5, -0.5, -0.5, 1, 1, 1); // Fallback
+                }
+                finalModelGroup.Children.Add(baseModel);
+
+                // 2. 선반 모델 로드 및 배치 (선반 로직은 유지)
+                string shelfModelPath = !string.IsNullOrEmpty(obj.ShelfModelPath) ? Path.Combine(basePath, obj.ShelfModelPath) : null;
+                if (obj.HasLayerSupport && obj.Layers > 0 && File.Exists(shelfModelPath))
+                {
+                    var shelfReader = new ObjReader();
+                    var shelfModelTemplate = shelfReader.Read(shelfModelPath);
+                    if (shelfModelTemplate != null)
+                    {
+                        double usableHeight = originalBounds.SizeZ * 0.9;
+                        double layerSpacing = usableHeight / obj.Layers;
+                        double startZ = originalBounds.Z + (originalBounds.SizeZ * 0.05);
+
+                        for (int i = 0; i < obj.Layers; i++)
+                        {
+                            var shelfInstance = shelfModelTemplate.Clone();
+                            double zPos = startZ + (i * layerSpacing);
+                            double yPos = originalBounds.Y + originalBounds.SizeY * 0.4;
+                            shelfInstance.Transform = new TranslateTransform3D(0, yPos, zPos);
+                            finalModelGroup.Children.Add(shelfInstance);
+                        }
+                    }
                 }
 
-                // 단일 모델 처리
-                return ProcessSingleModel(obj, model3DGroup);
+                // 3. 최종 변환 그룹 생성
+                var transformGroup = new Transform3DGroup();
+
+                // 3-A. 2D 도면상의 목표 크기 (피트 단위)
+                double desiredWidthFt = (obj.IsHorizontal ? obj.Width : obj.Length) / 12.0;
+                double desiredLengthFt = (obj.IsHorizontal ? obj.Length : obj.Width) / 12.0;
+                double desiredHeightFt = obj.Height / 12.0;
+
+                // 3-B. 각 축의 스케일 팩터 계산 (Non-Uniform Scale)
+                double scaleX = desiredWidthFt / originalBounds.SizeX;
+                double scaleY = desiredLengthFt / originalBounds.SizeY;
+                double scaleZ = desiredHeightFt / originalBounds.SizeZ;
+
+                // 3-C. 모델의 원본 중심점과 최종 목적지 중심점 계산
+                Point3D originalCenter = new Point3D(
+                    originalBounds.X + originalBounds.SizeX / 2.0,
+                    originalBounds.Y + originalBounds.SizeY / 2.0,
+                    originalBounds.Z + originalBounds.SizeZ / 2.0
+                );
+                double finalCenterX = (obj.Position.X / 12.0) + (desiredWidthFt / 2.0);
+                double finalCenterY = (obj.Position.Y / 12.0) + (desiredLengthFt / 2.0);
+
+                // 3-D. 변환 적용 (순서 중요!)
+                // Step 1: 모델의 원본 중심을 월드 원점(0,0,0)으로 이동
+                transformGroup.Children.Add(new TranslateTransform3D(-originalCenter.X, -originalCenter.Y, -originalCenter.Z));
+
+                // Step 2: 원점을 기준으로 모델 크기 조절
+                transformGroup.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
+
+                // Step 3: 원점을 기준으로 회전
+                if (!obj.IsHorizontal)
+                {
+                    transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), 90)));
+                }
+
+                // Step 4: 변환된 모델을 최종 목적지 중심으로 이동
+                transformGroup.Children.Add(new TranslateTransform3D(finalCenterX, finalCenterY, 0));
+
+                finalModelGroup.Transform = transformGroup;
+
+                return finalModelGroup;
             }
             catch (Exception ex)
             {
@@ -407,235 +379,6 @@ namespace testpro.Views
             }
         }
 
-        // 모델 파일명 결정
-        private string GetModelFileName(StoreObject obj)
-        {
-            switch (obj.Type)
-            {
-                case ObjectType.Shelf:
-                    return "display_rack_shelf.obj";
-                case ObjectType.Refrigerator:
-                    return "beverage_refrigerator.obj";
-                case ObjectType.Freezer:
-                    return "freezer.obj";
-                case ObjectType.Checkout:
-                    return "checkout.obj";
-                case ObjectType.DisplayStand:
-                    return "display_stand_pillar.obj";
-                default:
-                    return null;
-            }
-        }
-
-        // 층수가 있는 모델 생성 (선반, 냉장고 등)
-        private GeometryModel3D CreateLayeredModel(StoreObject obj, Model3DGroup baseModel)
-        {
-            var combinedMesh = new MeshGeometry3D();
-            var transform = new Transform3DGroup();
-
-            // 위치 변환
-            var position = new Point3D(
-                obj.Position.X / 12.0,
-                obj.Position.Y / 12.0,
-                0);
-
-            // 크기 변환
-            double scaleX = (obj.IsHorizontal ? obj.Width : obj.Length) / 48.0;
-            double scaleY = (obj.IsHorizontal ? obj.Length : obj.Width) / 18.0;
-            double scaleZ = obj.Height / 72.0;
-
-            // 회전 변환 (세로 방향인 경우)
-            if (!obj.IsHorizontal)
-            {
-                transform.Children.Add(new RotateTransform3D(
-                    new AxisAngleRotation3D(new Vector3D(0, 0, 1), 90)));
-            }
-
-            // 스케일 변환
-            transform.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
-
-            // 이동 변환
-            transform.Children.Add(new TranslateTransform3D(position.X, position.Y, position.Z));
-
-            // 층별로 선반 추가
-            for (int layer = 0; layer < obj.Layers; layer++)
-            {
-                double layerZ = obj.GetLayerZPosition(layer) / 12.0;
-
-                // 각 층에 대한 변환 적용
-                var layerTransform = new Transform3DGroup();
-                layerTransform.Children.Add(new TranslateTransform3D(0, 0, layerZ));
-
-                // 기존 변환들을 개별적으로 추가
-                foreach (var childTransform in transform.Children)
-                {
-                    layerTransform.Children.Add(childTransform);
-                }
-
-                // 메시 결합
-                if (baseModel.Children[0] is GeometryModel3D geoModel)
-                {
-                    var transformedMesh = TransformMesh(geoModel.Geometry as MeshGeometry3D, layerTransform);
-                    CombineMeshes(combinedMesh, transformedMesh);
-                }
-            }
-
-            // 재질 설정
-            var material = GetMaterialForType(obj.Type);
-
-            var model = new GeometryModel3D(combinedMesh, material);
-            model.BackMaterial = material;
-
-            return model;
-        }
-
-        // 단일 모델 처리
-        private GeometryModel3D ProcessSingleModel(StoreObject obj, Model3DGroup model3DGroup)
-        {
-            if (model3DGroup.Children[0] is GeometryModel3D geoModel)
-            {
-                var mesh = geoModel.Geometry as MeshGeometry3D;
-                if (mesh == null) return null;
-
-                // 변환 적용
-                var transform = new Transform3DGroup();
-
-                // 위치 변환
-                var position = new Point3D(
-                    obj.Position.X / 12.0,
-                    obj.Position.Y / 12.0,
-                    0);
-
-                // 크기 변환
-                double scaleX = (obj.IsHorizontal ? obj.Width : obj.Length) / 48.0;
-                double scaleY = (obj.IsHorizontal ? obj.Length : obj.Width) / 18.0;
-                double scaleZ = obj.Height / 72.0;
-
-                // 회전 변환
-                if (!obj.IsHorizontal)
-                {
-                    transform.Children.Add(new RotateTransform3D(
-                        new AxisAngleRotation3D(new Vector3D(0, 0, 1), 90)));
-                }
-
-                // 스케일 변환
-                transform.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
-
-                // 이동 변환
-                transform.Children.Add(new TranslateTransform3D(position.X, position.Y, position.Z));
-
-                // 변환된 메시 생성
-                var transformedMesh = TransformMesh(mesh, transform);
-
-                // 재질 설정
-                var material = GetMaterialForType(obj.Type);
-
-                var model = new GeometryModel3D(transformedMesh, material);
-                model.BackMaterial = material;
-
-                return model;
-            }
-
-            return null;
-        }
-
-        // 메시 변환 헬퍼
-        private MeshGeometry3D TransformMesh(MeshGeometry3D originalMesh, Transform3D transform)
-        {
-            var transformedMesh = new MeshGeometry3D();
-
-            // 정점 변환
-            foreach (var point in originalMesh.Positions)
-            {
-                transformedMesh.Positions.Add(transform.Transform(point));
-            }
-
-            // 삼각형 인덱스 복사
-            foreach (var index in originalMesh.TriangleIndices)
-            {
-                transformedMesh.TriangleIndices.Add(index);
-            }
-
-            // 법선 변환 (있는 경우)
-            if (originalMesh.Normals != null && originalMesh.Normals.Count > 0)
-            {
-                foreach (var normal in originalMesh.Normals)
-                {
-                    transformedMesh.Normals.Add(transform.Transform(normal));
-                }
-            }
-
-            // 텍스처 좌표 복사 (있는 경우)
-            if (originalMesh.TextureCoordinates != null && originalMesh.TextureCoordinates.Count > 0)
-            {
-                foreach (var texCoord in originalMesh.TextureCoordinates)
-                {
-                    transformedMesh.TextureCoordinates.Add(texCoord);
-                }
-            }
-
-            return transformedMesh;
-        }
-
-        // 메시 결합 헬퍼
-        private void CombineMeshes(MeshGeometry3D targetMesh, MeshGeometry3D sourceMesh)
-        {
-            int positionOffset = targetMesh.Positions.Count;
-
-            // 정점 추가
-            foreach (var position in sourceMesh.Positions)
-            {
-                targetMesh.Positions.Add(position);
-            }
-
-            // 삼각형 인덱스 추가 (오프셋 적용)
-            foreach (var index in sourceMesh.TriangleIndices)
-            {
-                targetMesh.TriangleIndices.Add(index + positionOffset);
-            }
-
-            // 법선 추가
-            foreach (var normal in sourceMesh.Normals)
-            {
-                targetMesh.Normals.Add(normal);
-            }
-
-            // 텍스처 좌표 추가
-            foreach (var texCoord in sourceMesh.TextureCoordinates)
-            {
-                targetMesh.TextureCoordinates.Add(texCoord);
-            }
-        }
-
-        // 타입별 재질 가져오기
-        private Material GetMaterialForType(ObjectType type)
-        {
-            Color color = Colors.Gray;
-
-            switch (type)
-            {
-                case ObjectType.Shelf:
-                    color = Color.FromRgb(160, 82, 45); // 시에나 브라운
-                    break;
-                case ObjectType.Refrigerator:
-                    color = Color.FromRgb(230, 230, 250); // 라벤더
-                    break;
-                case ObjectType.Freezer:
-                    color = Color.FromRgb(200, 220, 255); // 연한 파랑
-                    break;
-                case ObjectType.Checkout:
-                    color = Color.FromRgb(192, 192, 192); // 실버
-                    break;
-                case ObjectType.DisplayStand:
-                    color = Color.FromRgb(245, 222, 179); // 밀색
-                    break;
-                case ObjectType.Pillar:
-                    color = Color.FromRgb(128, 128, 128); // 회색
-                    break;
-            }
-
-            return new DiffuseMaterial(new SolidColorBrush(color));
-        }
 
         private GeometryModel3D CreateDefaultStoreObject3D(StoreObject obj)
         {
@@ -651,54 +394,11 @@ namespace testpro.Views
                 double length = (obj.IsHorizontal ? obj.Length : obj.Width) / 12.0;
                 double height = obj.Height / 12.0;
 
-                var mesh = new MeshGeometry3D();
+                var meshBuilder = new MeshBuilder(false, false);
+                var box = new Rect3D(position.X, position.Y, 0, width, length, height);
+                meshBuilder.AddBox(box);
 
-                // 층별로 박스 생성
-                for (int layer = 0; layer < obj.Layers; layer++)
-                {
-                    double layerHeight = height / obj.Layers;
-                    double z = layer * layerHeight;
-
-                    // 각 층의 8개 정점
-                    int baseIndex = mesh.Positions.Count;
-
-                    // 하단 4개 정점
-                    mesh.Positions.Add(new Point3D(position.X, position.Y, z));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y, z));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y + length, z));
-                    mesh.Positions.Add(new Point3D(position.X, position.Y + length, z));
-
-                    // 상단 4개 정점
-                    mesh.Positions.Add(new Point3D(position.X, position.Y, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X + width, position.Y + length, z + layerHeight));
-                    mesh.Positions.Add(new Point3D(position.X, position.Y + length, z + layerHeight));
-
-                    // 삼각형 인덱스
-                    int[] indices = {
-                        // 바닥
-                        baseIndex+0, baseIndex+2, baseIndex+1,
-                        baseIndex+0, baseIndex+3, baseIndex+2,
-                        // 천장
-                        baseIndex+4, baseIndex+5, baseIndex+6,
-                        baseIndex+4, baseIndex+6, baseIndex+7,
-                        // 앞면
-                        baseIndex+0, baseIndex+1, baseIndex+5,
-                        baseIndex+0, baseIndex+5, baseIndex+4,
-                        // 뒷면
-                        baseIndex+2, baseIndex+3, baseIndex+7,
-                        baseIndex+2, baseIndex+7, baseIndex+6,
-                        // 왼쪽
-                        baseIndex+0, baseIndex+4, baseIndex+7,
-                        baseIndex+0, baseIndex+7, baseIndex+3,
-                        // 오른쪽
-                        baseIndex+1, baseIndex+2, baseIndex+6,
-                        baseIndex+1, baseIndex+6, baseIndex+5
-                    };
-
-                    foreach (var idx in indices)
-                        mesh.TriangleIndices.Add(idx);
-                }
+                var mesh = meshBuilder.ToMesh();
 
                 // 객체 타입별 색상 설정
                 Color objColor = Colors.Gray;
