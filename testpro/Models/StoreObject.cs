@@ -5,12 +5,12 @@ namespace testpro.Models
 {
     public enum ObjectType
     {
-        Shelf,
-        Refrigerator,
-        Freezer,
-        Checkout,
-        DisplayStand,
-        Pillar
+        Shelf,          // 선반
+        Refrigerator,   // 냉장고
+        Freezer,        // 냉동고 (추가)
+        Checkout,       // 계산대
+        DisplayStand,   // 진열대
+        Pillar          // 기둥
     }
 
     public class StoreObject
@@ -21,102 +21,107 @@ namespace testpro.Models
         public double Width { get; set; }
         public double Length { get; set; }
         public double Height { get; set; }
-        public double Rotation { get; set; } = 0;
-        public int Layers { get; set; }
-        public bool IsHorizontal { get; set; } = true;
+        public double Rotation { get; set; } // 회전 각도 (도)
+        public int Layers { get; set; } // 층수
+        public bool IsHorizontal { get; set; } // 방향 (가로/세로)
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }
         public bool IsSelected { get; set; }
-        public string ModelPath { get; set; }
 
-        // [추가] 투명 부품을 위한 모델 경로 속성
-        public string TransparentModelPath { get; set; }
+        // 3D 모델 관련 속성
+        public string ModelBasePath { get; set; } // 3D 모델 기본 경로
+        public string ShelfModelPath { get; set; } // 선반 모델 경로
+        public bool HasLayerSupport { get; set; } // 층수 지원 여부
 
-        public bool HasLayerSupport { get; set; }
+        // 추가 속성 (RFP 요구사항)
         public DateTime CreatedAt { get; set; }
         public DateTime ModifiedAt { get; set; }
-        public string CategoryCode { get; set; }
-        public double Temperature { get; set; }
+        public string CategoryCode { get; set; } // 제품 카테고리 코드
+        public double Temperature { get; set; } // 냉장고/냉동고 온도 설정
 
         public StoreObject(ObjectType type, Point2D position)
         {
             Id = Guid.NewGuid().ToString();
             Type = type;
             Position = position;
+            IsHorizontal = true;
             CreatedAt = DateTime.Now;
             ModifiedAt = DateTime.Now;
-            CategoryCode = "GEN";
+            CategoryCode = "GEN"; // 기본값
 
+            // 타입별 기본 설정
             switch (type)
             {
                 case ObjectType.Shelf:
-                    Width = 48;
-                    Length = 18;
-                    Height = 72;
-                    Layers = 4;
-                    Fill = new SolidColorBrush(Color.FromRgb(139, 69, 19));
+                    Width = 48;  // 4ft
+                    Length = 18; // 1.5ft
+                    Height = 72; // 6ft
+                    Layers = 3;
+                    Fill = new SolidColorBrush(Color.FromRgb(139, 69, 19)); // 갈색
                     HasLayerSupport = true;
-                    ModelPath = @"Models\Shelf\shelf.obj";
+                    ModelBasePath = "Models/Shelf/shelf_frame.obj";
+                    ShelfModelPath = "Models/Shelf/shelf_layer.obj";
                     break;
 
                 case ObjectType.Refrigerator:
-                    Width = 36;
-                    Length = 24;
-                    Height = 72;
-                    Layers = 5;
-                    Fill = new SolidColorBrush(Color.FromRgb(200, 220, 240));
+                    Width = 36;  // 3ft
+                    Length = 24; // 2ft
+                    Height = 84; // 7ft
+                    Layers = 2;
+                    Fill = new SolidColorBrush(Color.FromRgb(200, 200, 255)); // 연한 파랑
                     HasLayerSupport = true;
-                    ModelPath = @"Models\Refrigerator\beverage_refrigerator.obj";
-                    // [추가] 분리된 유리 모델의 경로를 지정합니다.
-                    TransparentModelPath = @"Models\Refrigerator\refrigerator_glass.obj";
-                    Temperature = 4.0;
-                    CategoryCode = "BEVERAGE";
+                    ModelBasePath = "Models/Refrigerator/fridge_frame.obj";
+                    ShelfModelPath = "Models/Refrigerator/fridge_shelf.obj";
+                    Temperature = 4.0; // 섭씨 4도
                     break;
 
-                // ... 나머지 코드는 동일 ...
                 case ObjectType.Freezer:
-                    Width = 36;
-                    Length = 24;
-                    Height = 72;
+                    Width = 36;  // 3ft
+                    Length = 24; // 2ft
+                    Height = 84; // 7ft
                     Layers = 3;
-                    Fill = new SolidColorBrush(Color.FromRgb(150, 200, 255));
+                    Fill = new SolidColorBrush(Color.FromRgb(150, 200, 255)); // 더 진한 파랑
                     HasLayerSupport = true;
-                    ModelPath = @"Models\Freezer\freezer.obj";
-                    Temperature = -18.0;
+                    ModelBasePath = "Models/Freezer/freezer_frame.obj";
+                    ShelfModelPath = "Models/Freezer/freezer_shelf.obj";
+                    Temperature = -18.0; // 섭씨 -18도
                     break;
+
                 case ObjectType.Checkout:
-                    Width = 48;
-                    Length = 36;
-                    Height = 36;
+                    Width = 48;  // 4ft
+                    Length = 36; // 3ft
+                    Height = 36; // 3ft
                     Layers = 1;
-                    Fill = new SolidColorBrush(Color.FromRgb(192, 192, 192));
+                    Fill = new SolidColorBrush(Color.FromRgb(192, 192, 192)); // 은색
                     HasLayerSupport = false;
-                    ModelPath = @"Models\Checkout\checkout.obj";
+                    ModelBasePath = "Models/Checkout/checkout.obj";
                     break;
+
                 case ObjectType.DisplayStand:
-                    Width = 60;
-                    Length = 30;
-                    Height = 48;
+                    Width = 60;  // 5ft
+                    Length = 30; // 2.5ft
+                    Height = 48; // 4ft
                     Layers = 2;
-                    Fill = new SolidColorBrush(Color.FromRgb(255, 228, 196));
+                    Fill = new SolidColorBrush(Color.FromRgb(255, 228, 196)); // 베이지
                     HasLayerSupport = true;
-                    ModelPath = @"Models\DisplayStand\display_stand.obj";
+                    ModelBasePath = "Models/DisplayStand/display_frame.obj";
+                    ShelfModelPath = "Models/DisplayStand/display_shelf.obj";
                     break;
+
                 case ObjectType.Pillar:
-                    Width = 12;
-                    Length = 12;
-                    Height = 96;
+                    Width = 12;  // 1ft
+                    Length = 12; // 1ft
+                    Height = 96; // 8ft
                     Layers = 1;
-                    Fill = new SolidColorBrush(Color.FromRgb(128, 128, 128));
+                    Fill = new SolidColorBrush(Color.FromRgb(128, 128, 128)); // 회색
                     HasLayerSupport = false;
-                    ModelPath = @"Models\Pillar\pillar.obj";
+                    ModelBasePath = "Models/Pillar/pillar.obj";
                     break;
             }
 
             Stroke = Brushes.Black;
         }
 
-        // ... 나머지 메서드는 동일 ...
         public Point2D GetCenter()
         {
             return new Point2D(
@@ -139,35 +144,74 @@ namespace testpro.Models
             }
         }
 
-        public StoreObject Clone()
-        {
-            var clone = new StoreObject(Type, new Point2D(Position.X + 20, Position.Y + 20))
-            {
-                Width = Width,
-                Length = Length,
-                Height = Height,
-                Rotation = Rotation,
-                Layers = Layers,
-                IsHorizontal = IsHorizontal,
-                CategoryCode = CategoryCode,
-                Temperature = Temperature,
-                Fill = Fill,
-                Stroke = Stroke,
-                ModelPath = ModelPath,
-                TransparentModelPath = TransparentModelPath
-            };
-            return clone;
-        }
-
-        public bool ContainsPoint(Point2D point)
+        // 객체의 경계 상자 가져오기
+        public (Point2D min, Point2D max) GetBoundingBox()
         {
             double actualWidth = IsHorizontal ? Width : Length;
             double actualLength = IsHorizontal ? Length : Width;
 
-            return point.X >= Position.X &&
-                   point.X <= Position.X + actualWidth &&
-                   point.Y >= Position.Y &&
-                   point.Y <= Position.Y + actualLength;
+            return (
+                new Point2D(Position.X, Position.Y),
+                new Point2D(Position.X + actualWidth, Position.Y + actualLength)
+            );
+        }
+
+        // 점이 객체 내부에 있는지 확인
+        public bool ContainsPoint(Point2D point)
+        {
+            var (min, max) = GetBoundingBox();
+            return point.X >= min.X && point.X <= max.X &&
+                   point.Y >= min.Y && point.Y <= max.Y;
+        }
+
+        // 객체 이동
+        public void MoveTo(Point2D newPosition)
+        {
+            Position = newPosition;
+            ModifiedAt = DateTime.Now;
+        }
+
+        // 객체 회전 (90도 단위)
+        public void Rotate()
+        {
+            IsHorizontal = !IsHorizontal;
+            Rotation = IsHorizontal ? 0 : 90;
+            ModifiedAt = DateTime.Now;
+        }
+
+        // 층별 높이 계산
+        public double GetLayerHeight()
+        {
+            if (Layers <= 0) return Height;
+            return Height / Layers;
+        }
+
+        // 특정 층의 Z 위치 계산 (3D용)
+        public double GetLayerZPosition(int layerIndex)
+        {
+            if (layerIndex < 0 || layerIndex >= Layers) return 0;
+
+            double layerHeight = GetLayerHeight();
+
+            // 바닥부터 시작하여 각 층의 위치 계산
+            return layerIndex * layerHeight;
+        }
+
+        // 객체 정보 업데이트
+        public void UpdateProperties(double height, int layers, bool isHorizontal)
+        {
+            Height = height;
+            Layers = layers;
+            IsHorizontal = isHorizontal;
+            Rotation = isHorizontal ? 0 : 90;
+            ModifiedAt = DateTime.Now;
+        }
+
+        public override string ToString()
+        {
+            return $"{GetDisplayName()} - 위치: ({Position.X:F0}, {Position.Y:F0}), " +
+                   $"크기: {Width:F0}x{Length:F0}x{Height:F0}, 층수: {Layers}, " +
+                   $"방향: {(IsHorizontal ? "가로" : "세로")}";
         }
     }
 }

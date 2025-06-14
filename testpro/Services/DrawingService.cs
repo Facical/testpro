@@ -1,11 +1,8 @@
-﻿using HelixToolkit.Wpf;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Windows.Media.Media3D; // 이 네임스페이스는 3D 모델 관련 로직이 없어져도 다른 3D 모델 관련 코드가 존재할 경우 필요할 수 있습니다.
 using testpro.Models;
 
 namespace testpro.Services
@@ -15,10 +12,6 @@ namespace testpro.Services
         public List<Wall> Walls { get; } = new List<Wall>();
         public List<Room> Rooms { get; } = new List<Room>();
         public List<StoreObject> StoreObjects { get; } = new List<StoreObject>();
-
-        // 3D 모델 로딩 관련 캐시는 Viewer3D로 이동하거나 별도 3D 서비스에서 관리하는 것이 더 적절합니다.
-        // private Dictionary<string, Model3DGroup> _modelCache = new Dictionary<string, Model3DGroup>();
-
 
         private const double SnapDistance = 10.0;
 
@@ -36,10 +29,6 @@ namespace testpro.Services
                 OnPropertyChanged();
             }
         }
-
-        // DrawingService에서 3D 모델 로딩 관련 코드를 제거합니다.
-        // public Model3D LoadModel(string modelPath) { ... }
-        // public Model3DGroup GetCachedModel(string modelPath) { ... }
 
         public double ScaleY
         {

@@ -42,11 +42,9 @@
 	<ItemGroup>
 		<PackageReference Include="HelixToolkit.Wpf" Version="2.27.0" />
 		<PackageReference Include="System.Drawing.Common" Version="8.0.0" />
-		<PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.27.0" />
-		<PackageReference Include="SharpGLTF.Toolkit" Version="1.0.1" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Models\DisplayRack\" />
-	  <Folder Include="Models\FreezerChest\" />
+	  <Folder Include="Models\Checkout\" />
 	</ItemGroup>
+
 </Project>
