@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
-using System.Windows.Media.Imaging;
-using HelixToolkit.Wpf; // ObjReader를 사용하기 위해 필요합니다.
-using testpro.Models; // 이 부분과 ViewModel이 필수
-using testpro.ViewModels; // 이 부분과 Model이 필수
-// using HelixToolkit.Wpf.SharpDX.Cameras; // SharpDX를 사용하지 않으므로 제거합니다.
+using HelixToolkit.Wpf;
+using testpro.Models;
+using testpro.ViewModels;
 
 namespace testpro.Views
 {
@@ -19,70 +17,12 @@ namespace testpro.Views
     {
         private MainViewModel _viewModel;
         private ModelVisual3D _modelsContainer;
-        private DirectionalLight _directionalLight;
-        // OBJ 모델을 캐시하기 위해 Model3DGroup 대신 Model3D로 변경
-        private Dictionary<string, Model3D> _modelCache = new Dictionary<string, Model3D>();
+        private readonly Dictionary<string, Model3D> _modelCache = new Dictionary<string, Model3D>();
 
         public Viewer3D()
         {
             InitializeComponent();
             SetupViewer();
-        }
-
-        private void SetupViewer()
-        {
-            // 조명 설정
-            var lights = new Model3DGroup();
-
-            // 주변광
-            lights.Children.Add(new AmbientLight(Colors.White)
-            {
-                Color = Color.FromRgb(150, 150, 150)
-            });
-
-            // 방향광
-            _directionalLight = new DirectionalLight(Colors.White, new Vector3D(-1, -1, -1))
-            {
-                Color = Color.FromRgb(255, 255, 255)
-            };
-            lights.Children.Add(_directionalLight);
-
-            // 추가 조명 (반대 방향)
-            lights.Children.Add(new DirectionalLight(Colors.White, new Vector3D(1, 1, -0.5))
-            {
-                Color = Color.FromRgb(100, 100, 100)
-            });
-
-            var lightVisual = new ModelVisual3D { Content = lights };
-            ViewportMain.Children.Add(lightVisual);
-
-            // 모델 컨테이너
-            _modelsContainer = new ModelVisual3D();
-            ViewportMain.Children.Add(_modelsContainer);
-
-            // 카메라 설정
-            CameraMain.Position = new Point3D(50, 50, 50);
-            CameraMain.LookDirection = new Vector3D(-50, -50, -50);
-            CameraMain.UpDirection = new Vector3D(0, 0, 1);
-            CameraMain.FieldOfView = 60;
-
-            // 바닥 그리드 추가
-            AddFloorGrid();
-        }
-
-        private void AddFloorGrid()
-        {
-            var gridLines = new GridLinesVisual3D
-            {
-                // 크기를 조금 더 키워서 매장 크기를 고려합니다.
-                Width = 1000 / 12.0, // 1000 픽셀을 피트로 변환
-                Length = 800 / 12.0, // 800 픽셀을 피트로 변환
-                MinorDistance = 1,   // 1피트 간격
-                MajorDistance = 5,   // 5피트 간격
-                Thickness = 0.1,
-                Center = new Point3D((1000 / 12.0) / 2, (800 / 12.0) / 2, 0) // 중앙에 오도록 조정
-            };
-            ViewportMain.Children.Add(gridLines);
         }
 
         public MainViewModel ViewModel
@@ -93,7 +33,10 @@ namespace testpro.Views
                 if (_viewModel != null)
                 {
                     _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
-                    _viewModel.StoreObjects.CollectionChanged -= StoreObjects_CollectionChanged;
+                    if (_viewModel.StoreObjects != null)
+                    {
+                        _viewModel.StoreObjects.CollectionChanged -= Objects_CollectionChanged;
+                    }
                 }
 
                 _viewModel = value;
@@ -102,21 +45,47 @@ namespace testpro.Views
                 if (_viewModel != null)
                 {
                     _viewModel.PropertyChanged += ViewModel_PropertyChanged;
-                    _viewModel.StoreObjects.CollectionChanged += StoreObjects_CollectionChanged;
+                    if (_viewModel.StoreObjects != null)
+                    {
+                        _viewModel.StoreObjects.CollectionChanged += Objects_CollectionChanged;
+                    }
                     UpdateView();
                 }
             }
         }
 
+        private void SetupViewer()
+        {
+            var lights = new Model3DGroup();
+            lights.Children.Add(new AmbientLight(Color.FromRgb(100, 100, 100)));
+            lights.Children.Add(new DirectionalLight(Colors.White, new Vector3D(-1, -1.5, -2)));
+            lights.Children.Add(new DirectionalLight(Color.FromRgb(150, 150, 150), new Vector3D(1, 1, 0.5)));
+            ViewportMain.Children.Add(new ModelVisual3D { Content = lights });
+
+            _modelsContainer = new ModelVisual3D();
+            ViewportMain.Children.Add(_modelsContainer);
+
+            ViewportMain.Children.Add(new GridLinesVisual3D
+            {
+                Width = 200,
+                Length = 200,
+                MinorDistance = 5,
+                MajorDistance = 20,
+                Thickness = 0.1
+            });
+
+            ResetCamera();
+        }
+
         private void ViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == "StoreObjects" || e.PropertyName == "SelectedObject")
+            if (e.PropertyName == nameof(MainViewModel.StoreObjects) || e.PropertyName == nameof(MainViewModel.SelectedObject))
             {
                 UpdateView();
             }
         }
 
-        private void StoreObjects_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        private void Objects_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             UpdateView();
         }
@@ -124,396 +93,218 @@ namespace testpro.Views
         public void UpdateView()
         {
             _modelsContainer.Children.Clear();
-
             if (_viewModel?.StoreObjects == null) return;
 
             foreach (var obj in _viewModel.StoreObjects)
             {
-                var model3D = CreateStoreObject3D(obj);
-                if (model3D != null)
+                var modelVisual = CreateObjectVisual(obj);
+                if (modelVisual != null)
                 {
-                    var visual = new ModelVisual3D { Content = model3D };
-                    visual.SetValue(FrameworkElement.TagProperty, obj.Id);
-                    _modelsContainer.Children.Add(visual);
-
-                    // 선택된 객체 강조 (bounding box를 별도의 ModelVisual3D로 추가)
-                    if (obj.IsSelected)
-                    {
-                        var boundingBox = CreateBoundingBox(obj);
-                        if (boundingBox != null)
-                        {
-                            var boundingBoxVisual = new ModelVisual3D { Content = boundingBox };
-                            _modelsContainer.Children.Add(boundingBoxVisual);
-                        }
-                    }
+                    _modelsContainer.Children.Add(modelVisual);
                 }
             }
         }
 
-        private Model3D CreateStoreObject3D(StoreObject obj)
+        private ModelVisual3D CreateObjectVisual(StoreObject obj)
         {
             try
             {
-                // OBJ 파일 로드 시도
-                var loadedModel = TryLoadObjModel(obj);
-                if (loadedModel != null)
-                    return loadedModel;
 
-                // 실패 시 기본 모델 생성
-                return CreateDefaultModel(obj);
+                var modelGroup = new Model3DGroup();
+
+                // 1. 주 모델(냉장고 몸체)을 로드하여 그룹에 추가합니다.
+                var mainModel = GetOrLoadModel(obj.ModelPath) ?? CreateDefaultModel(obj);
+                modelGroup.Children.Add(mainModel.Clone());
+
+                // 2. 선반이 필요한 경우, 선반들을 '지역 변환'을 적용하여 그룹에 추가합니다.
+                if (obj.Type == ObjectType.Refrigerator && obj.HasLayerSupport && obj.Layers > 0)
+                {
+                    AddShelves(modelGroup, obj);
+                }
+
+                ProcessTransparentMaterials(modelGroup);
+
+                // 3. 완성된 그룹 전체에 '전역 변환'(크기, 회전, 위치)을 적용합니다.
+                modelGroup.Transform = CreateWorldTransform(modelGroup, obj);
+
+                // 4. 화면에 표시할 최종 시각적 요소를 생성합니다.
+                var visual = new ModelVisual3D { Content = modelGroup };
+                if (obj.IsSelected)
+                {
+                    var boundingBox = new BoundingBoxVisual3D
+                    {
+                        BoundingBox = modelGroup.Bounds,
+                        Fill = new SolidColorBrush(Color.FromArgb(64, 255, 255, 0))
+                    };
+                    visual.Children.Add(boundingBox);
+                }
+                return visual;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"3D 모델 생성 오류: {ex.Message}");
-                return CreateDefaultModel(obj);
-            }
-        }
-
-        private GeometryModel3D TryLoadObjModel(StoreObject obj)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(obj.ModelPath))
-                    return null;
-
-                string cacheKey = $"{obj.ModelPath}"; // 텍스처 변경될 경우도 고려하여 캐시키 조정
-                if (_modelCache.ContainsKey(cacheKey))
-                {
-                    // 캐시된 모델의 복사본을 가져와 변환 적용
-                    var cachedModel = _modelCache[cacheKey].Clone() as GeometryModel3D;
-                    if (cachedModel != null)
-                    {
-                        ApplyTransform(cachedModel, obj);
-                        return cachedModel;
-                    }
-                }
-
-                string basePath = AppDomain.CurrentDomain.BaseDirectory;
-                string modelPath = Path.Combine(basePath, obj.ModelPath);
-
-                if (!File.Exists(modelPath))
-                {
-                    System.Diagnostics.Debug.WriteLine($"모델 파일을 찾을 수 없음: {modelPath}");
-                    return null;
-                }
-
-                // OBJ 파일 로드
-                var objReader = new ObjReader();
-                Model3DGroup model3DGroup = null;
-                try
-                {
-                    model3DGroup = objReader.Read(modelPath);
-                }
-                catch (Exception objEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"OBJ 파일 읽기 오류: {objEx.Message}");
-                    return null;
-                }
-
-
-                if (model3DGroup == null || model3DGroup.Children.Count == 0)
-                    return null;
-
-                // 모든 GeometryModel3D를 하나로 결합
-                var combinedMesh = new MeshBuilder();
-                Material material = null; // 초기 재질은 null
-
-                foreach (var child in model3DGroup.Children)
-                {
-                    if (child is GeometryModel3D gm && gm.Geometry is MeshGeometry3D mesh)
-                    {
-                        combinedMesh.Append(mesh);
-                        // 첫 번째 GeometryModel3D의 Material을 기본으로 사용
-                        if (material == null && gm.Material != null)
-                            material = gm.Material;
-                    }
-                }
-
-                var finalMesh = combinedMesh.ToMesh();
-                if (finalMesh.Positions.Count == 0)
-                    return null;
-
-                // 텍스처 처리
-                if (!string.IsNullOrEmpty(obj.TexturePath))
-                {
-                    string texturePath = Path.Combine(basePath, obj.TexturePath);
-                    if (File.Exists(texturePath))
-                    {
-                        var bitmap = new BitmapImage(new Uri(texturePath, UriKind.Absolute));
-                        var brush = new ImageBrush(bitmap)
-                        {
-                            TileMode = TileMode.Tile,
-                            ViewportUnits = BrushMappingMode.Absolute,
-                            Viewport = new Rect(0, 0, 1, 1)
-                        };
-                        material = new DiffuseMaterial(brush);
-                    }
-                }
-
-                // 재질이 없으면 기본 재질 생성
-                if (material == null)
-                {
-                    material = GetMaterialForType(obj.Type);
-                }
-
-                var geometryModel = new GeometryModel3D(finalMesh, material);
-                geometryModel.BackMaterial = material;
-
-                // 캐시에 저장 (원본 모델을 저장)
-                _modelCache[cacheKey] = geometryModel.Clone();
-
-                // 변환 적용 (캐시된 모델의 복사본이 아닌 새로 생성된 모델에 적용)
-                ApplyTransform(geometryModel, obj);
-
-                return geometryModel;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"OBJ 로드 실패: {ex.Message}");
+                Debug.WriteLine($"[Error] Creating visual for {obj.Id}: {ex.Message}");
                 return null;
             }
         }
 
-        private void ApplyTransform(GeometryModel3D model, StoreObject obj)
+        private void ProcessTransparentMaterials(Model3DGroup modelGroup)
         {
-            var transformGroup = new Transform3DGroup();
+            var geometries = modelGroup.Children.OfType<GeometryModel3D>().ToList();
 
-            // 모델의 원래 크기를 1x1x1 단위로 정규화했다고 가정하고,
-            // StoreObject의 Width, Length, Height를 인치에서 피트로 변환하여 스케일 적용
-            // (12인치 = 1피트)
-            double scaleX = obj.Width / 12.0;
-            double scaleY = obj.Length / 12.0;
-            double scaleZ = obj.Height / 12.0;
-
-            // 모델링된 OBJ 파일의 크기가 정규화되지 않았을 경우, 여기서 추가 스케일 조정 필요
-            // 예: 모델이 실제 100단위로 되어 있다면, 100으로 나눠주는 추가 스케일 필요
-            // 현재 OBJ 파일의 기본 크기를 모르므로, 임의의 기본 크기(예: 1피트)를 기준으로 스케일링
-            // 실제 Blender에서 만들 모델의 단위를 고려하여 조정해야 합니다.
-            // 예를 들어 Blender에서 1m = 1 unit으로 모델링했다면, 12.0 대신 1.0을 사용하고
-            // obj.Width, obj.Length, obj.Height를 미터로 변환해야 할 수 있습니다.
-            // 여기서는 임시로 12.0으로 나누어 인치->피트 변환을 유지합니다.
-
-            transformGroup.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
-
-            // 회전 적용 (Z축 기준)
-            if (Math.Abs(obj.Rotation) > 0.01)
+            // 자식 그룹이 있다면 재귀적으로 탐색
+            var childGroups = modelGroup.Children.OfType<Model3DGroup>().ToList();
+            foreach (var group in childGroups)
             {
-                // Rotation은 2D 평면에서의 회전이므로 Z축을 기준으로 회전합니다.
-                transformGroup.Children.Add(new RotateTransform3D(
-                    new AxisAngleRotation3D(new Vector3D(0, 0, 1), obj.Rotation)));
+                geometries.AddRange(group.Children.OfType<GeometryModel3D>());
             }
 
-            // 위치 이동
-            // 2D Position은 왼쪽 상단 기준이므로, 3D의 중앙 기준으로 변환
-            // 모델의 중심이 (0,0,0)에 있다고 가정하고, 최종적으로 오브젝트의 좌하단 코너가
-            // obj.Position.X / 12.0, obj.Position.Y / 12.0, 0 에 오도록 Translate
-            transformGroup.Children.Add(new TranslateTransform3D(
-                obj.Position.X / 12.0,
-                obj.Position.Y / 12.0,
-                0));
+            foreach (var geo in geometries)
+            {
+                if (geo.Material is DiffuseMaterial diffuseMat)
+                {
+                    // .mtl 파일에서 유리 재질의 이름을 "Glass" 또는 "Transparent" 등으로 지정했다고 가정합니다.
+                    // 해당 재질을 찾아 알파값을 코드에서 직접 설정합니다.
+                    // **중요**: .mtl 파일에서 유리 재질의 이름을 확인하고 아래 "Glass" 부분을 실제 이름으로 바꿔주세요.
+                    if (diffuseMat.GetName().Contains("TransparentGlass", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // 새로운 반투명 재질 생성
+                        var transparentBrush = new SolidColorBrush(Colors.LightGray) { Opacity = 0.3 }; // 30% 불투명도
+                        var transparentMaterial = new DiffuseMaterial(transparentBrush);
 
-            model.Transform = transformGroup;
+                        // 기존 재질을 새로운 반투명 재질로 교체
+                        geo.Material = transparentMaterial;
+                        geo.BackMaterial = transparentMaterial; // 뒷면도 동일하게 적용
+                    }
+                }
+            }
+        }
+        private void AddShelves(Model3DGroup parentGroup, StoreObject obj)
+        {
+            if (parentGroup.Children.Count == 0) return;
+            var mainModelBounds = parentGroup.Children[0].Bounds;
+            if (mainModelBounds.IsEmpty) return;
+
+            var shelfModel = GetOrLoadModel(@"Models\Refrigerator\refrigerator_shelf.obj");
+            if (shelfModel == null) return;
+
+            // 냉장고 모델의 '지역' 좌표계 기준으로 선반 위치를 계산합니다.
+            double localTotalHeight = mainModelBounds.SizeZ;
+            double localBottomZ = mainModelBounds.Z;
+
+            double bottomMargin = localTotalHeight * 0.05; // 하단 여유 공간 (모델 높이의 5%)
+            double topMargin = localTotalHeight * 0.05;    // 상단 여유 공간 (모델 높이의 5%)
+            double usableHeight = localTotalHeight - bottomMargin - topMargin;
+
+            if (usableHeight <= 0) return;
+            double spacing = usableHeight / (obj.Layers + 1);
+
+            for (int i = 1; i <= obj.Layers; i++)
+            {
+                var shelfInstance = shelfModel.Clone();
+                var shelfBounds = shelfInstance.Bounds;
+                if (shelfBounds.IsEmpty) continue;
+
+                var localTransform = new Transform3DGroup();
+
+                // 선반의 X, Y 크기를 냉장고 내부에 맞게 조절 (예: 95% 크기)
+                double scaleX = (mainModelBounds.SizeX * 0.95) / shelfBounds.SizeX;
+                double scaleY = (mainModelBounds.SizeY * 0.95) / shelfBounds.SizeY;
+                localTransform.Children.Add(new ScaleTransform3D(scaleX, scaleY, 1, shelfBounds.Location.X + shelfBounds.SizeX / 2, shelfBounds.Location.Y + shelfBounds.SizeY / 2, shelfBounds.Z));
+
+                // 선반의 Z 위치를 계산하여 이동
+                double targetZ = localBottomZ + bottomMargin + (i * spacing);
+                localTransform.Children.Add(new TranslateTransform3D(0, 0, targetZ));
+
+                shelfInstance.Transform = localTransform;
+                parentGroup.Children.Add(shelfInstance);
+            }
         }
 
+        /// <summary>
+        /// 객체 그룹 전체를 월드 공간에 배치하기 위한 최종 변환을 생성합니다.
+        /// </summary>
+        private Transform3D CreateWorldTransform(Model3DGroup modelGroup, StoreObject obj)
+        {
+            var transform = new Transform3DGroup();
+            Rect3D bounds = modelGroup.Bounds;
+            if (bounds.IsEmpty) return Transform3D.Identity;
+
+            // 1. 크기 (Scale)
+            double scaleX = bounds.SizeX > 0 ? ((obj.IsHorizontal ? obj.Width : obj.Length) / 12.0) / bounds.SizeX : 1;
+            double scaleY = bounds.SizeY > 0 ? ((obj.IsHorizontal ? obj.Length : obj.Width) / 12.0) / bounds.SizeY : 1;
+            double scaleZ = bounds.SizeZ > 0 ? (obj.Height / 12.0) / bounds.SizeZ : 1;
+            transform.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ, bounds.Location.X + bounds.SizeX / 2, bounds.Location.Y + bounds.SizeY / 2, bounds.Z));
+
+            // 2. 회전 (Rotate)
+            transform.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), obj.Rotation), new Point3D(bounds.Location.X + bounds.SizeX / 2, bounds.Location.Y + bounds.SizeY / 2, 0)));
+
+            // 3. 위치 (Translate)
+            double worldX = (obj.Position.X + (obj.IsHorizontal ? obj.Width : obj.Length) / 2) / 12.0;
+            double worldY = (obj.Position.Y + (obj.IsHorizontal ? obj.Length : obj.Width) / 2) / 12.0;
+            double worldZ = -bounds.Z * scaleZ;
+            transform.Children.Add(new TranslateTransform3D(worldX, worldY, worldZ));
+
+            return transform;
+        }
+
+        private Model3D GetOrLoadModel(string modelPath)
+        {
+            if (string.IsNullOrEmpty(modelPath)) return null;
+            if (_modelCache.TryGetValue(modelPath, out Model3D cachedModel))
+            {
+                return cachedModel;
+            }
+
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, modelPath);
+            if (!File.Exists(fullPath))
+            {
+                Debug.WriteLine($"[Warning] Model file not found: {fullPath}");
+                return null;
+            }
+
+            try
+            {
+                var reader = new ObjReader();
+                var model = reader.Read(fullPath);
+                model.Freeze();
+                _modelCache[modelPath] = model;
+                return model;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Error] Failed to load model {modelPath}: {ex.Message}");
+                return null;
+            }
+        }
 
         private GeometryModel3D CreateDefaultModel(StoreObject obj)
         {
             var meshBuilder = new MeshBuilder();
-
-            // 인치 값을 피트 값으로 변환 (12인치 = 1피트)
-            var width = obj.Width / 12.0;
-            var depth = obj.Length / 12.0;
-            var height = obj.Height / 12.0;
-
-            // 기본 박스 모델은 항상 (0,0,0)을 중심으로 생성되므로,
-            // 실제 위치를 고려하여 translateTransform에 영향을 주도록 변경합니다.
-            // 여기서는 모델 자체는 (0,0,0)을 중심으로 만들고, TranslateTransform에서 위치를 조정합니다.
-            meshBuilder.AddBox(new Point3D(0, 0, 0), width, depth, height);
-
-            var mesh = meshBuilder.ToMesh();
-            var material = GetMaterialForType(obj.Type);
-
-            var model = new GeometryModel3D(mesh, material);
-            model.BackMaterial = material;
-
-            // 변환 적용 (회전 중심점도 고려)
-            var transformGroup = new Transform3DGroup();
-
-            // 회전 적용
-            if (Math.Abs(obj.Rotation) > 0.01)
+            meshBuilder.AddBox(new Point3D(0, 0, 0.5), 1, 1, 1);
+            Color color = obj.Type switch
             {
-                // 회전의 중심을 객체의 2D 평면 중심 (3D에서는 Z=height/2)으로 설정
-                var rotateTransform = new RotateTransform3D(
-                    new AxisAngleRotation3D(new Vector3D(0, 0, 1), obj.Rotation),
-                    new Point3D(0, 0, height / 2)); // 모델의 로컬 중심 기준
-                transformGroup.Children.Add(rotateTransform);
-            }
-
-            // 위치 이동
-            // 모델의 기준점이 (0,0,0)이므로, 객체의 왼쪽 아래 모서리가 위치하도록 이동
-            transformGroup.Children.Add(new TranslateTransform3D(
-                obj.Position.X / 12.0,
-                obj.Position.Y / 12.0,
-                0));
-
-            model.Transform = transformGroup;
-
-            return model;
+                ObjectType.Shelf => Colors.Sienna,
+                ObjectType.Refrigerator => Colors.LightSteelBlue,
+                _ => Colors.Gray
+            };
+            return new GeometryModel3D(meshBuilder.ToMesh(), new DiffuseMaterial(new SolidColorBrush(color)));
         }
 
-        private Material GetMaterialForType(ObjectType type)
-        {
-            Color color = Colors.Gray;
-
-            switch (type)
-            {
-                case ObjectType.Shelf:
-                    color = Color.FromRgb(160, 82, 45); // 시에나 브라운
-                    break;
-                case ObjectType.Refrigerator:
-                    color = Color.FromRgb(230, 240, 250); // 라이트 블루
-                    break;
-                case ObjectType.Freezer:
-                    color = Color.FromRgb(200, 220, 255); // 연한 파랑
-                    break;
-                case ObjectType.Checkout:
-                    color = Color.FromRgb(192, 192, 192); // 실버
-                    break;
-                case ObjectType.DisplayStand:
-                    color = Color.FromRgb(245, 222, 179); // 밀색
-                    break;
-                case ObjectType.Pillar:
-                    color = Color.FromRgb(128, 128, 128); // 회색
-                    break;
-            }
-
-            var materialGroup = new MaterialGroup();
-            materialGroup.Children.Add(new DiffuseMaterial(new SolidColorBrush(color)));
-            materialGroup.Children.Add(new SpecularMaterial(Brushes.White, 20));
-
-            return materialGroup;
-        }
-
-        private Model3D CreateBoundingBox(StoreObject obj)
-        {
-            var width = obj.Width / 12.0;
-            var depth = obj.Length / 12.0;
-            var height = obj.Height / 12.0;
-
-            // Bounding box를 나타낼 Model3D를 생성합니다.
-            // 이전 AddTube 방식에서 더 간단하고 일반적으로 사용되는 LinesVisual3D를 직접 활용합니다.
-            // LinesVisual3D는 ModelVisual3D의 Content로 직접 추가할 수 없습니다.
-            // 대신 BoundingBoxWireFrameVisual3D 또는 Custom GeometryModel3D로 라인을 생성해야 합니다.
-            // 여기서는 LinesVisual3D를 활용하여 GeometryModel3D를 구성하는 방식으로 수정합니다.
-
-            // 8개의 꼭짓점 정의
-            Point3D[] vertices = new Point3D[8];
-            vertices[0] = new Point3D(obj.Position.X / 12.0, obj.Position.Y / 12.0, 0);
-            vertices[1] = new Point3D(obj.Position.X / 12.0 + width, obj.Position.Y / 12.0, 0);
-            vertices[2] = new Point3D(obj.Position.X / 12.0 + width, obj.Position.Y / 12.0 + depth, 0);
-            vertices[3] = new Point3D(obj.Position.X / 12.0, obj.Position.Y / 12.0 + depth, 0);
-
-            vertices[4] = new Point3D(obj.Position.X / 12.0, obj.Position.Y / 12.0, height);
-            vertices[5] = new Point3D(obj.Position.X / 12.0 + width, obj.Position.Y / 12.0, height);
-            vertices[6] = new Point3D(obj.Position.X / 12.0 + width, obj.Position.Y / 12.0 + depth, height);
-            vertices[7] = new Point3D(obj.Position.X / 12.0, obj.Position.Y / 12.0 + depth, height);
-
-            // 12개의 선을 MeshGeometry3D로 구성
-            var lineMesh = new MeshGeometry3D();
-            var positions = new Point3DCollection();
-            var indices = new Int32Collection();
-
-            double lineThickness = 0.05; // 선의 두께 (피트 단위)
-
-            // 아래쪽 면
-            AddLineGeometry(positions, indices, vertices[0], vertices[1], lineThickness);
-            AddLineGeometry(positions, indices, vertices[1], vertices[2], lineThickness);
-            AddLineGeometry(positions, indices, vertices[2], vertices[3], lineThickness);
-            AddLineGeometry(positions, indices, vertices[3], vertices[0], lineThickness);
-
-            // 위쪽 면
-            AddLineGeometry(positions, indices, vertices[4], vertices[5], lineThickness);
-            AddLineGeometry(positions, indices, vertices[5], vertices[6], lineThickness);
-            AddLineGeometry(positions, indices, vertices[6], vertices[7], lineThickness);
-            AddLineGeometry(positions, indices, vertices[7], vertices[4], lineThickness);
-
-            // 수직선
-            AddLineGeometry(positions, indices, vertices[0], vertices[4], lineThickness);
-            AddLineGeometry(positions, indices, vertices[1], vertices[5], lineThickness);
-            AddLineGeometry(positions, indices, vertices[2], vertices[6], lineThickness);
-            AddLineGeometry(positions, indices, vertices[3], vertices[7], lineThickness);
-
-            lineMesh.Positions = positions;
-            lineMesh.TriangleIndices = indices;
-
-            var material = new EmissiveMaterial(Brushes.Yellow);
-            var boundingBoxModel = new GeometryModel3D(lineMesh, material);
-
-            return boundingBoxModel;
-        }
-
-        // 두 점 사이에 원통형 선을 그리는 헬퍼 메서드
-        private void AddLineGeometry(Point3DCollection positions, Int32Collection indices, Point3D p1, Point3D p2, double diameter)
-        {
-            var builder = new MeshBuilder();
-            builder.AddCylinder(p1, p2, diameter / 2, 8); // 지름을 반지름으로 변환
-
-            // 생성된 메쉬를 현재 Positions와 Indices에 추가
-            int startIdx = positions.Count;
-            foreach (var pos in builder.Positions)
-            {
-                positions.Add(pos);
-            }
-            foreach (var triIdx in builder.TriangleIndices)
-            {
-                indices.Add(startIdx + triIdx);
-            }
-        }
-
-
-        // 마우스 이벤트 핸들러
-        private void ViewportMain_MouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            var camera = CameraMain;
-            var delta = e.Delta > 0 ? 0.9 : 1.1;
-
-            var lookDirection = camera.LookDirection;
-            lookDirection.Normalize();
-
-            camera.Position = camera.Position + lookDirection * (1 - delta) * 5;
-
-            e.Handled = true;
-        }
-
-        // 카메라 리셋
         public void ResetCamera()
         {
-            CameraMain.Position = new Point3D(50, 50, 50);
-            CameraMain.LookDirection = new Vector3D(-50, -50, -50);
+            CameraMain.Position = new Point3D(50, 80, 60);
+            CameraMain.LookDirection = new Vector3D(-50, -80, -60);
             CameraMain.UpDirection = new Vector3D(0, 0, 1);
+            CameraMain.FieldOfView = 60;
         }
 
-        // 이 LoadModel 메서드는 DrawingService에서 제거되었으므로,
-        // 필요하다면 TryLoadObjModel 또는 다른 3D 모델 로딩 메서드를 사용하도록 리팩토링해야 합니다.
-        // 현재는 직접적으로 호출되는 곳이 없으므로 제거해도 무방합니다.
-        /*
-        private Model3D LoadModel(string modelPath)
+        private void ViewportMain_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            try
+            var newPosition = CameraMain.Position - (CameraMain.LookDirection * (e.Delta / 200.0));
+            if (newPosition.Z > 1)
             {
-                if (System.IO.File.Exists(modelPath))
-                {
-                    var objReader = new ObjReader();
-                    var model3DGroup = objReader.Read(modelPath);
-                    return model3DGroup;
-                }
+                CameraMain.Position = newPosition;
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"모델 로드 실패: {ex.Message}");
-            }
-            return null;
         }
-        */
     }
 }

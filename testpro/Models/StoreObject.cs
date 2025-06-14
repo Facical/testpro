@@ -5,12 +5,12 @@ namespace testpro.Models
 {
     public enum ObjectType
     {
-        Shelf,          // 선반
-        Refrigerator,   // 냉장고
-        Freezer,        // 냉동고
-        Checkout,       // 계산대
-        DisplayStand,   // 진열대
-        Pillar          // 기둥
+        Shelf,
+        Refrigerator,
+        Freezer,
+        Checkout,
+        DisplayStand,
+        Pillar
     }
 
     public class StoreObject
@@ -27,13 +27,12 @@ namespace testpro.Models
         public Brush Fill { get; set; }
         public Brush Stroke { get; set; }
         public bool IsSelected { get; set; }
-
-        // 3D 모델 관련 속성
         public string ModelPath { get; set; }
-        public string TexturePath { get; set; }
-        public bool HasLayerSupport { get; set; }
 
-        // 추가 속성
+        // [추가] 투명 부품을 위한 모델 경로 속성
+        public string TransparentModelPath { get; set; }
+
+        public bool HasLayerSupport { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime ModifiedAt { get; set; }
         public string CategoryCode { get; set; }
@@ -48,34 +47,33 @@ namespace testpro.Models
             ModifiedAt = DateTime.Now;
             CategoryCode = "GEN";
 
-            // 타입별 기본 설정 및 OBJ 모델 경로 설정
             switch (type)
             {
                 case ObjectType.Shelf:
-                    Width = 48;  // 4ft
-                    Length = 18; // 1.5ft
-                    Height = 72; // 6ft
-                    Layers = 3;
+                    Width = 48;
+                    Length = 18;
+                    Height = 72;
+                    Layers = 4;
                     Fill = new SolidColorBrush(Color.FromRgb(139, 69, 19));
                     HasLayerSupport = true;
-                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\Shelf\shelf.obj";
                     break;
 
                 case ObjectType.Refrigerator:
-                    Width = 36;  // 3ft
-                    Length = 24; // 2ft
-                    Height = 72; // 6ft
-                    Layers = 3;
+                    Width = 36;
+                    Length = 24;
+                    Height = 72;
+                    Layers = 5;
                     Fill = new SolidColorBrush(Color.FromRgb(200, 220, 240));
                     HasLayerSupport = true;
-                    // OBJ 모델 경로로 수정
-                    ModelPath = @"Models\Refrigerator\refrigerator.obj";
-                    TexturePath = @"Models\Refrigerator\refrigerator_texture.png"; // 텍스처 경로 (필요 시)
+                    ModelPath = @"Models\Refrigerator\beverage_refrigerator.obj";
+                    // [추가] 분리된 유리 모델의 경로를 지정합니다.
+                    TransparentModelPath = @"Models\Refrigerator\refrigerator_glass.obj";
                     Temperature = 4.0;
                     CategoryCode = "BEVERAGE";
                     break;
 
+                // ... 나머지 코드는 동일 ...
                 case ObjectType.Freezer:
                     Width = 36;
                     Length = 24;
@@ -83,11 +81,9 @@ namespace testpro.Models
                     Layers = 3;
                     Fill = new SolidColorBrush(Color.FromRgb(150, 200, 255));
                     HasLayerSupport = true;
-                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\Freezer\freezer.obj";
                     Temperature = -18.0;
                     break;
-
                 case ObjectType.Checkout:
                     Width = 48;
                     Length = 36;
@@ -95,10 +91,8 @@ namespace testpro.Models
                     Layers = 1;
                     Fill = new SolidColorBrush(Color.FromRgb(192, 192, 192));
                     HasLayerSupport = false;
-                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\Checkout\checkout.obj";
                     break;
-
                 case ObjectType.DisplayStand:
                     Width = 60;
                     Length = 30;
@@ -106,10 +100,8 @@ namespace testpro.Models
                     Layers = 2;
                     Fill = new SolidColorBrush(Color.FromRgb(255, 228, 196));
                     HasLayerSupport = true;
-                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\DisplayStand\display_stand.obj";
                     break;
-
                 case ObjectType.Pillar:
                     Width = 12;
                     Length = 12;
@@ -117,7 +109,6 @@ namespace testpro.Models
                     Layers = 1;
                     Fill = new SolidColorBrush(Color.FromRgb(128, 128, 128));
                     HasLayerSupport = false;
-                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\Pillar\pillar.obj";
                     break;
             }
@@ -125,6 +116,7 @@ namespace testpro.Models
             Stroke = Brushes.Black;
         }
 
+        // ... 나머지 메서드는 동일 ...
         public Point2D GetCenter()
         {
             return new Point2D(
@@ -147,18 +139,6 @@ namespace testpro.Models
             }
         }
 
-        public (Point2D min, Point2D max) GetBoundingBox()
-        {
-            double actualWidth = IsHorizontal ? Width : Length;
-            double actualLength = IsHorizontal ? Length : Width;
-
-            return (
-                Position,
-                new Point2D(Position.X + actualWidth, Position.Y + actualLength)
-            );
-        }
-
-        // 복사 메서드
         public StoreObject Clone()
         {
             var clone = new StoreObject(Type, new Point2D(Position.X + 20, Position.Y + 20))
@@ -173,19 +153,17 @@ namespace testpro.Models
                 Temperature = Temperature,
                 Fill = Fill,
                 Stroke = Stroke,
-                ModelPath = ModelPath, // 모델 경로도 복사
-                TexturePath = TexturePath // 텍스처 경로도 복사
+                ModelPath = ModelPath,
+                TransparentModelPath = TransparentModelPath
             };
             return clone;
         }
 
-        // 점이 객체 내부에 있는지 확인
         public bool ContainsPoint(Point2D point)
         {
             double actualWidth = IsHorizontal ? Width : Length;
             double actualLength = IsHorizontal ? Length : Width;
 
-            // 간단한 AABB 충돌 검사
             return point.X >= Position.X &&
                    point.X <= Position.X + actualWidth &&
                    point.Y >= Position.Y &&
