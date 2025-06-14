@@ -48,7 +48,7 @@ namespace testpro.Models
             ModifiedAt = DateTime.Now;
             CategoryCode = "GEN";
 
-            // 타입별 기본 설정
+            // 타입별 기본 설정 및 OBJ 모델 경로 설정
             switch (type)
             {
                 case ObjectType.Shelf:
@@ -58,7 +58,8 @@ namespace testpro.Models
                     Layers = 3;
                     Fill = new SolidColorBrush(Color.FromRgb(139, 69, 19));
                     HasLayerSupport = true;
-                    ModelPath = @"Models\Shelf\display_rack_shelf.obj";
+                    // OBJ 모델 경로로 수정
+                    ModelPath = @"Models\Shelf\shelf.obj";
                     break;
 
                 case ObjectType.Refrigerator:
@@ -68,8 +69,9 @@ namespace testpro.Models
                     Layers = 3;
                     Fill = new SolidColorBrush(Color.FromRgb(200, 220, 240));
                     HasLayerSupport = true;
-                    ModelPath = @"Models\Refrigerator\beverage_refrigerator.obj";
-                    TexturePath = @"Models\Refrigerator\beverage_refrigerator_texture.png";
+                    // OBJ 모델 경로로 수정
+                    ModelPath = @"Models\Refrigerator\refrigerator.obj";
+                    TexturePath = @"Models\Refrigerator\refrigerator_texture.png"; // 텍스처 경로 (필요 시)
                     Temperature = 4.0;
                     CategoryCode = "BEVERAGE";
                     break;
@@ -81,6 +83,7 @@ namespace testpro.Models
                     Layers = 3;
                     Fill = new SolidColorBrush(Color.FromRgb(150, 200, 255));
                     HasLayerSupport = true;
+                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\Freezer\freezer.obj";
                     Temperature = -18.0;
                     break;
@@ -92,6 +95,7 @@ namespace testpro.Models
                     Layers = 1;
                     Fill = new SolidColorBrush(Color.FromRgb(192, 192, 192));
                     HasLayerSupport = false;
+                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\Checkout\checkout.obj";
                     break;
 
@@ -102,7 +106,8 @@ namespace testpro.Models
                     Layers = 2;
                     Fill = new SolidColorBrush(Color.FromRgb(255, 228, 196));
                     HasLayerSupport = true;
-                    ModelPath = @"Models\DisplayStand\display_stand_pillar.obj";
+                    // OBJ 모델 경로로 수정
+                    ModelPath = @"Models\DisplayStand\display_stand.obj";
                     break;
 
                 case ObjectType.Pillar:
@@ -112,6 +117,7 @@ namespace testpro.Models
                     Layers = 1;
                     Fill = new SolidColorBrush(Color.FromRgb(128, 128, 128));
                     HasLayerSupport = false;
+                    // OBJ 모델 경로로 수정
                     ModelPath = @"Models\Pillar\pillar.obj";
                     break;
             }
@@ -166,7 +172,9 @@ namespace testpro.Models
                 CategoryCode = CategoryCode,
                 Temperature = Temperature,
                 Fill = Fill,
-                Stroke = Stroke
+                Stroke = Stroke,
+                ModelPath = ModelPath, // 모델 경로도 복사
+                TexturePath = TexturePath // 텍스처 경로도 복사
             };
             return clone;
         }

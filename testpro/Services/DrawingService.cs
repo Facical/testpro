@@ -5,7 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Windows.Media.Media3D;
+using System.Windows.Media.Media3D; // 이 네임스페이스는 3D 모델 관련 로직이 없어져도 다른 3D 모델 관련 코드가 존재할 경우 필요할 수 있습니다.
 using testpro.Models;
 
 namespace testpro.Services
@@ -16,7 +16,8 @@ namespace testpro.Services
         public List<Room> Rooms { get; } = new List<Room>();
         public List<StoreObject> StoreObjects { get; } = new List<StoreObject>();
 
-        private Dictionary<string, Model3DGroup> _modelCache = new Dictionary<string, Model3DGroup>();
+        // 3D 모델 로딩 관련 캐시는 Viewer3D로 이동하거나 별도 3D 서비스에서 관리하는 것이 더 적절합니다.
+        // private Dictionary<string, Model3DGroup> _modelCache = new Dictionary<string, Model3DGroup>();
 
 
         private const double SnapDistance = 10.0;
@@ -36,56 +37,9 @@ namespace testpro.Services
             }
         }
 
-        public Model3D LoadModel(string modelPath)
-        {
-            try
-            {
-                if (!File.Exists(modelPath))
-                {
-                    System.Diagnostics.Debug.WriteLine($"모델 파일을 찾을 수 없음: {modelPath}");
-                    return null;
-                }
-
-                string extension = Path.GetExtension(modelPath).ToLower();
-
-                switch (extension)
-                {
-                    case ".obj":
-                        var objReader = new ObjReader();
-                        return objReader.Read(modelPath);
-
-                    case ".stl":
-                        var stlReader = new StLReader();
-                        return stlReader.Read(modelPath);
-
-                    case ".3ds":
-                        var reader3ds = new StudioReader();
-                        return reader3ds.Read(modelPath);
-
-                    default:
-                        System.Diagnostics.Debug.WriteLine($"지원하지 않는 파일 형식: {extension}");
-                        return null;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"모델 로드 오류: {ex.Message}");
-                return null;
-            }
-        }
-
-        public Model3DGroup GetCachedModel(string modelPath)
-        {
-            if (_modelCache.ContainsKey(modelPath))
-                return _modelCache[modelPath].Clone();
-
-            // 모델 로드
-            var model = LoadModel(modelPath);
-            if (model != null)
-                _modelCache[modelPath] = model;
-
-            return model;
-        }
+        // DrawingService에서 3D 모델 로딩 관련 코드를 제거합니다.
+        // public Model3D LoadModel(string modelPath) { ... }
+        // public Model3DGroup GetCachedModel(string modelPath) { ... }
 
         public double ScaleY
         {

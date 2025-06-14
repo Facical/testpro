@@ -61,6 +61,8 @@ namespace testpro.Models
             var visited = new HashSet<Point2D>();
             var path = new List<Point2D>();
 
+            // Point2D는 구조체이므로 null을 직접 사용할 수 없습니다.
+            // 대신 Nullable<Point2D> (Point2D?)를 사용합니다.
             if (TryBuildClosedPath(points, path, visited, Walls.First().StartPoint))
             {
                 return path.Count >= 3;
@@ -83,15 +85,18 @@ namespace testpro.Models
 
             foreach (var wall in Walls)
             {
-                Point2D next = null;
+                // Point2D는 구조체이므로 null을 직접 사용할 수 없습니다.
+                // Nullable<Point2D> (Point2D?)를 사용하여 null 가능한 값 형식으로 만듭니다.
+                Point2D? next = null; // 수정: Point2D? 사용
                 if (wall.StartPoint.Equals(start))
                     next = wall.EndPoint;
                 else if (wall.EndPoint.Equals(start))
                     next = wall.StartPoint;
 
-                if (next != null)
+                // next가 null이 아닌 경우에만 조건문 실행
+                if (next.HasValue) // 수정: .HasValue 사용
                 {
-                    if (TryBuildClosedPath(allPoints, path, visited, next))
+                    if (TryBuildClosedPath(allPoints, path, visited, next.Value)) // 수정: .Value 사용
                         return true;
                 }
             }
@@ -154,7 +159,7 @@ namespace testpro.Models
             while (usedWalls.Count < Walls.Count)
             {
                 Wall nextWall = null;
-                Point2D nextPoint = null;
+                Point2D? nextPoint = null; // 수정: Point2D? 사용
 
                 foreach (var wall in Walls.Where(w => !usedWalls.Contains(w)))
                 {
@@ -175,10 +180,11 @@ namespace testpro.Models
                 if (nextWall == null) break;
 
                 usedWalls.Add(nextWall);
-                if (!nextPoint.Equals(start))
+                // nextPoint가 null이 아니면서, start와 같지 않을 때
+                if (nextPoint.HasValue && !nextPoint.Value.Equals(start)) // 수정: .HasValue 및 .Value 사용
                 {
-                    points.Add(nextPoint);
-                    current = nextPoint;
+                    points.Add(nextPoint.Value); // 수정: .Value 사용
+                    current = nextPoint.Value; // 수정: .Value 사용
                 }
                 else
                 {

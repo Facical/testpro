@@ -28,7 +28,7 @@
                 Padding="5">
             <StackPanel Orientation="Horizontal">
                 <Button Content="-" Width="30" Height="30" Margin="2" Click="ZoomOut_Click"/>
-                <TextBlock Text="100%" Width="50" TextAlignment="Center" 
+                <TextBlock x:Name="ZoomLevelText" Text="100%" Width="50" TextAlignment="Center" 
                           VerticalAlignment="Center" Foreground="White"/>
                 <Button Content="+" Width="30" Height="30" Margin="2" Click="ZoomIn_Click"/>
             </StackPanel>
