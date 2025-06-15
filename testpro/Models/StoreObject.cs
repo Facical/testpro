@@ -95,6 +95,32 @@ namespace testpro.Models
             Stroke = Brushes.Black;
         }
 
+        public StoreObject Clone()
+        {
+            return (StoreObject)this.MemberwiseClone();
+        }
+
+        public void ApplyState(StoreObject state)
+        {
+            this.Type = state.Type;
+            this.Position = new Point2D(state.Position.X, state.Position.Y);
+            this.Width = state.Width;
+            this.Length = state.Length;
+            this.Height = state.Height;
+            this.Rotation = state.Rotation;
+            this.Layers = state.Layers;
+            this.IsHorizontal = state.IsHorizontal;
+            this.Fill = state.Fill;
+            this.Stroke = state.Stroke;
+            this.ModelBasePath = state.ModelBasePath;
+            this.ShelfModelPath = state.ShelfModelPath;
+            this.HasLayerSupport = state.HasLayerSupport;
+            this.ModifiedAt = state.ModifiedAt;
+            this.CategoryCode = state.CategoryCode;
+            this.Temperature = state.Temperature;
+        }
+
+
         public string GetDisplayName() => Type switch
         {
             ObjectType.Shelf => "선반",

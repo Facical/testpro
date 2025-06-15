@@ -39,15 +39,26 @@ namespace testpro.Views
             get => _viewModel;
             set
             {
-                if (_viewModel != null) _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+                if (_viewModel != null)
+                {
+                    _viewModel.DrawingService.PropertyChanged -= DrawingService_PropertyChanged;
+                    _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+                }
                 _viewModel = value;
                 DataContext = _viewModel;
                 if (_viewModel != null)
                 {
+                    _viewModel.DrawingService.PropertyChanged += DrawingService_PropertyChanged;
                     _viewModel.PropertyChanged += ViewModel_PropertyChanged;
                     UpdateAll3DModels();
                 }
             }
+        }
+
+        private void DrawingService_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            // DrawingService의 데이터가 변경될 때마다 3D 뷰를 다시 그림
+            Dispatcher.Invoke(UpdateAll3DModels);
         }
 
         public Viewer3D()
@@ -70,6 +81,10 @@ namespace testpro.Views
         {
             if (e.PropertyName == nameof(MainViewModel.DrawingService))
             {
+                if (_viewModel.DrawingService != null)
+                {
+                    _viewModel.DrawingService.PropertyChanged += DrawingService_PropertyChanged;
+                }
                 UpdateAll3DModels();
             }
         }
@@ -133,7 +148,6 @@ namespace testpro.Views
             }
         }
 
-        // *** 3D 객체 클릭 이벤트 핸들러 수정 ***
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
@@ -144,13 +158,11 @@ namespace testpro.Views
 
             if (result != null && result.ModelHit is GeometryModel3D hitGeometry && _geometryMap.TryGetValue(hitGeometry, out StoreObject clickedObject))
             {
-                // 편집 모드의 속성 설정창 열기
                 var dialog = new ObjectTypeSelectionDialog(clickedObject);
                 dialog.Owner = Window.GetWindow(this);
 
                 if (dialog.ShowDialog() == true)
                 {
-                    // 다이얼로그에서 변경된 속성으로 객체 업데이트
                     _viewModel.DrawingService.UpdateStoreObject(
                         clickedObject,
                         dialog.ObjectWidth,
@@ -166,7 +178,6 @@ namespace testpro.Views
             }
         }
 
-        // --- 이하 코드는 이전 답변과 동일합니다 ---
         #region Unchanged Methods
 
         private Model3D TryLoadObjModel(StoreObject obj)
@@ -190,7 +201,7 @@ namespace testpro.Views
                 finalModelGroup.Children.Add(baseModel);
 
                 string shelfModelPath = !string.IsNullOrEmpty(obj.ShelfModelPath) ? Path.Combine(basePath, obj.ShelfModelPath) : null;
-                if (obj.HasLayerSupport && obj.Layers > 0 && File.Exists(shelfModelPath))
+                if (obj.HasLayerSupport && obj.Layers > 0 && !string.IsNullOrEmpty(shelfModelPath) && File.Exists(shelfModelPath))
                 {
                     var shelfReader = new ObjReader();
                     var shelfModelTemplate = shelfReader.Read(shelfModelPath);
@@ -269,11 +280,20 @@ namespace testpro.Views
 
             if (moved)
             {
-                MainCamera.Position += moveVector;
-                _lookAtPoint += moveVector;
-                UpdateCameraInfo();
+                var newLookAt = _lookAtPoint + moveVector;
+                if (IsValidPosition(newLookAt))
+                {
+                    _lookAtPoint = newLookAt;
+                    UpdateCamera();
+                }
                 e.Handled = true;
             }
+        }
+
+        private bool IsValidPosition(Point3D point)
+        {
+            // 간단한 경계 체크
+            return Math.Abs(point.X) < 1000 && Math.Abs(point.Y) < 1000;
         }
 
         protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
@@ -336,13 +356,17 @@ namespace testpro.Views
             {
                 var moveSpeed = _zoom * 0.002;
                 var radY = _rotationY * Math.PI / 180.0;
-                var sinY = Math.Sin(radY);
-                var cosY = Math.Cos(radY);
-                var moveVector = -(cosY * delta.X - sinY * delta.Y) * new Vector3D(cosY, sinY, 0)
-                                 - (sinY * delta.X + cosY * delta.Y) * new Vector3D(-sinY, cosY, 0);
+                var moveDirection = new Vector3D(-delta.X, delta.Y, 0);
 
-                _lookAtPoint += moveVector * moveSpeed;
-                UpdateCamera();
+                var transform = new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), -_rotationY));
+                var transformedDelta = transform.Transform(moveDirection);
+
+                var newLookAt = _lookAtPoint + transformedDelta * moveSpeed;
+                if (IsValidPosition(newLookAt))
+                {
+                    _lookAtPoint = newLookAt;
+                    UpdateCamera();
+                }
             }
 
             _lastMousePos = currentPos;
@@ -483,13 +507,17 @@ namespace testpro.Views
 
         private void UpdateCamera()
         {
-            var radX = _rotationX * Math.PI / 180;
-            var radY = _rotationY * Math.PI / 180;
-            var x = _zoom * Math.Cos(radX) * Math.Sin(radY);
-            var y = _zoom * Math.Cos(radX) * Math.Cos(radY);
-            var z = _zoom * Math.Sin(radX);
-            MainCamera.Position = _lookAtPoint + new Vector3D(x, y, z);
-            MainCamera.LookDirection = -new Vector3D(x, y, z);
+            var radX = _rotationX * Math.PI / 180.0;
+            var radY = _rotationY * Math.PI / 180.0;
+
+            var dir = new Vector3D(
+                Math.Cos(radX) * Math.Sin(radY),
+                Math.Cos(radX) * Math.Cos(radY),
+                Math.Sin(radX)
+            );
+
+            MainCamera.Position = _lookAtPoint - dir * _zoom;
+            MainCamera.LookDirection = dir;
             MainCamera.UpDirection = new Vector3D(0, 0, 1);
             UpdateCameraInfo();
         }
@@ -506,14 +534,12 @@ namespace testpro.Views
         private void SideView_Click(object sender, RoutedEventArgs e) { SetViewPreset(0, 90); }
         private void TopView_Click(object sender, RoutedEventArgs e) { SetViewPreset(89, 0); }
         private void IsometricView_Click(object sender, RoutedEventArgs e) { SetViewPreset(30, -45); }
-        private void ResetView_Click(object sender, RoutedEventArgs e) { SetViewPreset(30, -45); }
+        private void ResetView_Click(object sender, RoutedEventArgs e) { ZoomExtents(); SetViewPreset(30, -45); }
 
         private void SetViewPreset(double rotX, double rotY)
         {
             _rotationX = rotX;
             _rotationY = rotY;
-            _zoom = 150;
-            _lookAtPoint = CalculateSceneCenter();
             UpdateCamera();
         }
 

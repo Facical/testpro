@@ -19,7 +19,7 @@ namespace testpro.Views
         private MainViewModel _viewModel;
         private Point2D _tempStartPoint;
         private bool _isDrawingWall = false;
-        private Rectangle _previewWall;
+        private Line _previewWall;
         private const double GridSize = 12.0;
         private double _zoomFactor = 1.0;
         private Point _lastPanPoint;
@@ -36,7 +36,7 @@ namespace testpro.Views
         private Rectangle _hoverHighlight;
         private bool _isDraggingObject = false;
         private Point2D _dragOffset;
-        private Point2D _dragStartPosition; // 이동 시작 위치 기록
+        private Point2D _dragStartPosition;
 
         private List<DetectedObject> _detectedObjects = new List<DetectedObject>();
         private Canvas _detectedObjectsCanvas;
@@ -101,7 +101,6 @@ namespace testpro.Views
             }
         }
 
-        // DrawingService의 내부 데이터가 변경될 때마다 RedrawAll() 호출
         private void DrawingService_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             Dispatcher.Invoke(RedrawAll);
@@ -111,7 +110,7 @@ namespace testpro.Views
         {
             if (_selectedObject != null)
             {
-                _copiedObject = _selectedObject;
+                _copiedObject = _selectedObject.Clone();
                 if (_viewModel != null) _viewModel.StatusText = $"{_copiedObject.GetDisplayName()} 복사됨.";
             }
         }
@@ -148,6 +147,9 @@ namespace testpro.Views
 
             switch (_viewModel?.CurrentTool)
             {
+                case "WallStraight":
+                    HandleWallTool(snappedPosition);
+                    break;
                 case "PlaceObject":
                     HandlePlaceObjectStart(snappedPosition);
                     break;
@@ -162,26 +164,35 @@ namespace testpro.Views
             if (!_isDrawingObject || _objectPreview == null) return;
 
             var width = Math.Abs(position.X - _objectStartPoint.X);
-            var height = Math.Abs(position.Y - _objectStartPoint.Y);
+            var length = Math.Abs(position.Y - _objectStartPoint.Y);
 
             TempCanvas.Children.Remove(_objectPreview);
             _objectPreview = null;
             _isDrawingObject = false;
+            Mouse.Capture(null);
 
-            if (width > 10 && height > 10)
+            if (width > 10 && length > 10)
             {
                 var objectTypeStr = MainWindow?.GetCurrentObjectTool();
                 if (!string.IsNullOrEmpty(objectTypeStr) && Enum.TryParse(objectTypeStr, out ObjectType type))
                 {
                     var topLeft = new Point2D(Math.Min(_objectStartPoint.X, position.X), Math.Min(_objectStartPoint.Y, position.Y));
-                    // AddStoreObject 호출 시 크기 정보도 함께 전달
-                    _viewModel.DrawingService.AddStoreObject(type, topLeft, width, height);
+                    _viewModel.DrawingService.AddStoreObject(type, topLeft, width, length);
                 }
             }
         }
 
         private void HandleSelectTool(Point2D position, MouseButtonEventArgs e)
         {
+            // 먼저 감지된 객체를 선택하는지 확인
+            var detectedObj = GetDetectedObjectAt(position.ToPoint());
+            if (detectedObj != null)
+            {
+                // 감지된 객체를 실제 StoreObject로 변환
+                ConvertDetectedObject(detectedObj);
+                return;
+            }
+
             var obj = _viewModel.DrawingService.GetObjectAt(position);
             SelectObject(obj);
 
@@ -189,7 +200,7 @@ namespace testpro.Views
             {
                 _isDraggingObject = true;
                 _dragOffset = new Point2D(position.X - obj.Position.X, position.Y - obj.Position.Y);
-                _dragStartPosition = obj.Position; // 이동 시작 위치 기록
+                _dragStartPosition = obj.Position;
                 MainCanvas.CaptureMouse();
             }
             else
@@ -200,22 +211,38 @@ namespace testpro.Views
             }
         }
 
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (e.Key == Key.Escape)
+            {
+                CancelWallDrawing();
+                CancelObjectDrawing();
+                SelectObject(null);
+                _viewModel.CurrentTool = "Select";
+            }
+        }
+
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
             var mousePos = e.GetPosition(MainCanvas);
-            var snappedPosition = SnapToGrid(new Point2D(mousePos.X, mousePos.Y));
+            Point2D snappedPosition = mousePos.ToPoint2D();
 
-            if (_isDrawingObject && _objectPreview != null)
+            if (_isDrawingWall && _previewWall != null)
+            {
+                UpdateWallPreview(snappedPosition);
+            }
+            else if (_isDrawingObject && _objectPreview != null)
             {
                 UpdateObjectPreview(snappedPosition);
             }
             else if (_isDraggingObject && _selectedObject != null && e.LeftButton == MouseButtonState.Pressed)
             {
-                var newPosition = new Point2D(snappedPosition.X - _dragOffset.X, snappedPosition.Y - _dragOffset.Y);
-                // 실시간으로 위치만 변경 (Undo/Redo 기록은 마우스를 놓을 때)
-                _selectedObject.Position = newPosition;
-                RedrawAll(); // 실시간으로 끌기 표시
+                var newPos = new Point2D(mousePos.X - _dragOffset.X, mousePos.Y - _dragOffset.Y);
+                _selectedObject.Position = SnapToGrid(newPos);
+                RedrawAll();
             }
             else if (_isPanning && e.LeftButton == MouseButtonState.Pressed)
             {
@@ -227,7 +254,14 @@ namespace testpro.Views
             }
             else if (_viewModel?.CurrentTool == "Select")
             {
-                UpdateObjectHover(mousePos);
+                UpdateObjectHover(mousePos.ToPoint2D());
+            }
+            else if (_viewModel.CurrentTool == "WallStraight" && !_isDrawingWall)
+            {
+                snappedPosition = SnapToGrid(mousePos.ToPoint2D());
+                MousePointer.Visibility = Visibility.Visible;
+                Canvas.SetLeft(MousePointer, snappedPosition.X - MousePointer.Width / 2);
+                Canvas.SetTop(MousePointer, snappedPosition.Y - MousePointer.Height / 2);
             }
         }
 
@@ -241,18 +275,33 @@ namespace testpro.Views
             }
             else if (_isDraggingObject && _selectedObject != null)
             {
-                // 드래그가 끝났을 때만 이동 기록
-                if (_selectedObject.Position.DistanceTo(_dragStartPosition) > 1) // 실제로 움직였을 때만
-                {
-                    _viewModel.DrawingService.MoveStoreObject(_selectedObject, _dragStartPosition, _selectedObject.Position);
-                }
                 _isDraggingObject = false;
                 MainCanvas.ReleaseMouseCapture();
+                var finalPosition = SnapToGrid(_selectedObject.Position);
+                _selectedObject.Position = finalPosition; // 최종 위치 스냅
+
+                if (_selectedObject.Position.DistanceTo(_dragStartPosition) > 1)
+                {
+                    _viewModel.DrawingService.MoveStoreObject(_selectedObject, _dragStartPosition, finalPosition);
+                }
+                RedrawAll();
             }
             else if (_isDrawingObject)
             {
-                var snappedPosition = SnapToGrid(new Point2D(e.GetPosition(MainCanvas).X, e.GetPosition(MainCanvas).Y));
+                var snappedPosition = new Point2D(e.GetPosition(MainCanvas).X, e.GetPosition(MainCanvas).Y);
                 HandlePlaceObjectEnd(snappedPosition);
+            }
+        }
+
+        protected override void OnMouseWheel(MouseWheelEventArgs e)
+        {
+            base.OnMouseWheel(e);
+            if (Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                double zoom = e.Delta > 0 ? 1.1 : 1 / 1.1;
+                _zoomFactor *= zoom;
+                MainCanvas.LayoutTransform = new ScaleTransform(_zoomFactor, _zoomFactor);
+                e.Handled = true;
             }
         }
 
@@ -276,8 +325,124 @@ namespace testpro.Views
             }
         }
 
-        // --- 이하 다른 메서드는 이전과 동일 (생략) ---
-        #region Other Unchanged Methods
+        private void ConvertDetectedObject(DetectedObject detectedObject)
+        {
+            if (detectedObject.ConvertedStoreObject != null)
+            {
+                SelectObject(detectedObject.ConvertedStoreObject);
+                return;
+            }
+
+            var dialog = new ObjectTypeSelectionDialog();
+            dialog.Owner = MainWindow;
+            if (dialog.ShowDialog() == true)
+            {
+                var newObj = detectedObject.ToStoreObjectWithProperties(
+                    dialog.ObjectWidth, dialog.ObjectHeight, dialog.ObjectLength,
+                    dialog.ObjectLayers, dialog.IsHorizontal, dialog.Temperature, dialog.CategoryCode);
+
+                newObj.Position = new Point2D(detectedObject.Bounds.Left, detectedObject.Bounds.Top);
+
+                // AddStoreObject의 올바른 오버로드를 사용
+                var addedObj = _viewModel.DrawingService.AddStoreObject(
+                    newObj.Type,
+                    newObj.Position,
+                    newObj.Width,
+                    newObj.Length,
+                    newObj.Height,
+                    newObj.Layers,
+                    newObj.IsHorizontal,
+                    newObj.Temperature,
+                    newObj.CategoryCode);
+
+                detectedObject.ConvertedStoreObject = addedObj;
+                _detectedObjectsCanvas.Children.Remove(detectedObject.OverlayShape);
+                _detectedObjectsCanvas.Children.Remove(detectedObject.SelectionBorder);
+
+                SelectObject(addedObj);
+            }
+        }
+
+
+        #region Other Methods
+
+        public void SetBackgroundImage(string imagePath)
+        {
+            try
+            {
+                _loadedFloorPlan = new BitmapImage(new Uri(imagePath));
+                if (_backgroundImage == null)
+                {
+                    _backgroundImage = new Image { Opacity = 0.5 };
+                    BackgroundCanvas.Children.Add(_backgroundImage);
+                    Canvas.SetZIndex(_backgroundImage, -1);
+                }
+                _backgroundImage.Source = _loadedFloorPlan;
+                _backgroundImage.Width = MainCanvas.Width;
+                _backgroundImage.Height = MainCanvas.Height;
+                ClearDetectedObjects();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"배경 이미지 설정 오류: {ex.Message}");
+            }
+        }
+
+        public void ClearBackgroundImage()
+        {
+            if (_backgroundImage != null)
+            {
+                BackgroundCanvas.Children.Remove(_backgroundImage);
+                _backgroundImage = null;
+            }
+            _loadedFloorPlan = null;
+            ClearDetectedObjects();
+        }
+
+        public void DetectObjectsInFloorPlan()
+        {
+            if (_loadedFloorPlan == null) return;
+            var analyzer = new FloorPlanAnalyzer();
+            var bounds = analyzer.FindFloorPlanBounds(_loadedFloorPlan);
+            if (bounds == null)
+            {
+                MessageBox.Show("도면 경계를 찾을 수 없습니다.");
+                return;
+            }
+
+            _detectedObjects = analyzer.DetectFloorPlanObjects(_loadedFloorPlan, bounds);
+            DrawDetectedObjects();
+        }
+
+        private DetectedObject GetDetectedObjectAt(Point p)
+        {
+            return _detectedObjects.FirstOrDefault(d => d.Bounds.Contains(p) && d.ConvertedStoreObject == null);
+        }
+
+
+        public int GetDetectedObjectsCount()
+        {
+            return _detectedObjects?.Count ?? 0;
+        }
+
+        private void UpdateMousePointerVisibility()
+        {
+            if (_viewModel.CurrentTool == "WallStraight" || _viewModel.CurrentTool == "PlaceObject")
+            {
+                MousePointer.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                MousePointer.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void UpdateStartPointIndicatorPosition()
+        {
+            // 이 메서드는 StartPointIndicator라는 UI 요소가 XAML에 필요합니다.
+            // 현재는 해당 요소가 없으므로 이 메서드는 비워둡니다.
+            // 예: Canvas.SetLeft(StartPointIndicator, _tempStartPoint.X - StartPointIndicator.Width / 2);
+        }
 
         private void SelectObject(StoreObject obj)
         {
@@ -302,6 +467,7 @@ namespace testpro.Views
                 Canvas.SetLeft(_objectPreview, position.X);
                 Canvas.SetTop(_objectPreview, position.Y);
                 TempCanvas.Children.Add(_objectPreview);
+                Mouse.Capture(MainCanvas);
                 _viewModel.StatusText = "영역을 드래그하여 크기를 지정하세요";
             }
         }
@@ -318,12 +484,72 @@ namespace testpro.Views
             }
         }
 
+        private void UpdateWallPreview(Point2D currentPos)
+        {
+            if (_previewWall != null)
+            {
+                _previewWall.X1 = _tempStartPoint.X;
+                _previewWall.Y1 = _tempStartPoint.Y;
+                _previewWall.X2 = currentPos.X;
+                _previewWall.Y2 = currentPos.Y;
+            }
+        }
+
+        // 커서 모양을 업데이트하는 헬퍼 메서드
+        private void UpdateCursorBasedOnTool()
+        {
+            if (_viewModel == null) return;
+            switch (_viewModel.CurrentTool)
+            {
+                case "WallStraight":
+                case "PlaceObject":
+                    this.Cursor = Cursors.Cross;
+                    break;
+                case "Select":
+                default:
+                    this.Cursor = Cursors.Arrow;
+                    break;
+            }
+        }
+
         private void DrawingCanvas_Loaded(object sender, RoutedEventArgs e)
         {
             DrawGrid();
             Focus();
-            UpdateMousePointerVisibility();
+            // ViewModel 속성이 변경될 때 커서가 업데이트되도록 수정
+            if (ViewModel != null)
+            {
+                ViewModel.PropertyChanged += (s, args) =>
+                {
+                    if (args.PropertyName == nameof(MainViewModel.CurrentTool))
+                    {
+                        UpdateCursorBasedOnTool();
+                    }
+                };
+            }
+            UpdateCursorBasedOnTool();
         }
+
+        private void DrawDetectedObjects()
+        {
+            ClearDetectedObjects();
+            foreach (var obj in _detectedObjects)
+            {
+                var rect = new Rectangle
+                {
+                    Width = obj.Bounds.Width,
+                    Height = obj.Bounds.Height,
+                    Fill = new SolidColorBrush(Color.FromArgb(80, 255, 165, 0)),
+                    Stroke = Brushes.OrangeRed,
+                    StrokeThickness = 2
+                };
+                Canvas.SetLeft(rect, obj.Bounds.Left);
+                Canvas.SetTop(rect, obj.Bounds.Top);
+                obj.OverlayShape = rect;
+                _detectedObjectsCanvas.Children.Add(rect);
+            }
+        }
+
 
         private void DrawGrid()
         {
@@ -402,40 +628,16 @@ namespace testpro.Views
 
         private void DrawWall(Wall wall)
         {
-            var startPoint = wall.StartPoint;
-            var endPoint = wall.EndPoint;
-            var thickness = wall.Thickness;
-            var dx = endPoint.X - startPoint.X;
-            var dy = endPoint.Y - startPoint.Y;
-            var length = Math.Sqrt(dx * dx + dy * dy);
-            if (length == 0) return;
-            var unitX = dx / length;
-            var unitY = dy / length;
-            var perpX = -unitY * thickness / 2;
-            var perpY = unitX * thickness / 2;
-            var wallPolygon = new Polygon { Fill = wall.Fill, Stroke = wall.Stroke, StrokeThickness = 1 };
-            wallPolygon.Points.Add(new Point(startPoint.X + perpX, startPoint.Y + perpY));
-            wallPolygon.Points.Add(new Point(endPoint.X + perpX, endPoint.Y + perpY));
-            wallPolygon.Points.Add(new Point(endPoint.X - perpX, endPoint.Y - perpY));
-            wallPolygon.Points.Add(new Point(startPoint.X - perpX, startPoint.Y - perpY));
-            WallCanvas.Children.Add(wallPolygon);
-            string lengthText = wall.RealLengthInInches.HasValue ? $"{wall.RealLengthInInches.Value / 12.0:F0}'-{wall.RealLengthInInches.Value % 12.0:F0}\"" : wall.LengthDisplay;
-            var lengthLabel = new TextBlock { Text = lengthText, FontSize = 12, Background = Brushes.White, Padding = new Thickness(2) };
-            bool isHorizontal = Math.Abs(dx) > Math.Abs(dy);
-            var formattedText = new FormattedText(lengthText, System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), 12, Brushes.Black, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-            double textWidth = formattedText.Width, textHeight = formattedText.Height;
-            double offsetDistance = 20;
-            double labelX = isHorizontal ? wall.MidPoint.X - textWidth / 2 : wall.MidPoint.X - offsetDistance - textWidth;
-            double labelY = isHorizontal ? wall.MidPoint.Y - offsetDistance - textHeight / 2 : wall.MidPoint.Y - textHeight / 2;
-            Canvas.SetLeft(lengthLabel, labelX);
-            Canvas.SetTop(lengthLabel, labelY);
-            LabelCanvas.Children.Add(lengthLabel);
-            if (isHorizontal)
+            var line = new Line
             {
-                var angle = Math.Atan2(dy, dx) * 180 / Math.PI;
-                lengthLabel.RenderTransformOrigin = new Point(0.5, 0.5);
-                lengthLabel.RenderTransform = new RotateTransform(angle > 90 || angle < -90 ? angle + 180 : angle);
-            }
+                X1 = wall.StartPoint.X,
+                Y1 = wall.StartPoint.Y,
+                X2 = wall.EndPoint.X,
+                Y2 = wall.EndPoint.Y,
+                Stroke = wall.Stroke,
+                StrokeThickness = wall.Thickness
+            };
+            WallCanvas.Children.Add(line);
         }
 
         private void UpdateObjectHover(Point2D position)
@@ -448,9 +650,9 @@ namespace testpro.Views
                 if (_hoveredObject != null && _hoveredObject != _selectedObject)
                 {
                     var (min, max) = _hoveredObject.GetBoundingBox();
-                    _hoverHighlight = new Rectangle { Width = max.X - min.X + 6, Height = max.Y - min.Y + 6, Fill = Brushes.Transparent, Stroke = Brushes.Blue, StrokeThickness = 2, Opacity = 0.5 };
-                    Canvas.SetLeft(_hoverHighlight, min.X - 3);
-                    Canvas.SetTop(_hoverHighlight, min.Y - 3);
+                    _hoverHighlight = new Rectangle { Width = max.X - min.X, Height = max.Y - min.Y, Fill = Brushes.Transparent, Stroke = Brushes.Blue, StrokeThickness = 2, Opacity = 0.5 };
+                    Canvas.SetLeft(_hoverHighlight, min.X);
+                    Canvas.SetTop(_hoverHighlight, min.Y);
                     TempCanvas.Children.Add(_hoverHighlight);
                 }
             }
@@ -463,6 +665,7 @@ namespace testpro.Views
                 TempCanvas.Children.Remove(_objectPreview);
                 _objectPreview = null;
                 _isDrawingObject = false;
+                Mouse.Capture(null);
             }
         }
 
@@ -485,9 +688,7 @@ namespace testpro.Views
                 _tempStartPoint = position;
                 _isDrawingWall = true;
                 _viewModel.StatusText = "직선 벽 그리기: 끝점을 클릭하세요";
-                StartPointIndicator.Visibility = Visibility.Visible;
-                UpdateStartPointIndicatorPosition();
-                _previewWall = new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(100, 200, 200, 255)), Stroke = Brushes.Blue, StrokeThickness = 2, StrokeDashArray = new DoubleCollection { 5, 5 } };
+                _previewWall = new Line { Stroke = Brushes.Blue, StrokeThickness = 2, StrokeDashArray = new DoubleCollection { 5, 5 } };
                 TempCanvas.Children.Add(_previewWall);
             }
             else
@@ -497,7 +698,6 @@ namespace testpro.Views
                 _viewModel.StatusText = "직선 벽 그리기: 시작점을 클릭하세요";
                 TempCanvas.Children.Remove(_previewWall);
                 _previewWall = null;
-                StartPointIndicator.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -507,7 +707,6 @@ namespace testpro.Views
             {
                 _isDrawingWall = false;
                 if (_previewWall != null) { TempCanvas.Children.Remove(_previewWall); _previewWall = null; }
-                StartPointIndicator.Visibility = Visibility.Collapsed;
                 if (_viewModel != null) _viewModel.StatusText = _viewModel.CurrentTool == "WallStraight" ? "직선 벽 그리기: 시작점을 클릭하세요" : "도구를 선택하세요";
             }
         }
@@ -515,11 +714,16 @@ namespace testpro.Views
         #endregion
     }
 
-    public static class Point2DExtensions
+    public static class PointExtensions
     {
         public static Point ToPoint(this Point2D point2D)
         {
             return new Point(point2D.X, point2D.Y);
+        }
+
+        public static Point2D ToPoint2D(this Point point)
+        {
+            return new Point2D(point.X, point.Y);
         }
     }
 }
