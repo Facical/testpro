@@ -34,6 +34,7 @@ namespace testpro.Dialogs
         private ObjectTypeInfo selectedTypeInfo;
         private int currentStep = 1;
 
+        // 생성 모드를 위한 기본 생성자
         public ObjectTypeSelectionDialog()
         {
             InitializeComponent();
@@ -42,32 +43,36 @@ namespace testpro.Dialogs
             UpdateStepVisual();
         }
 
+        // *** 편집 모드를 위한 새로운 생성자 추가 ***
         public ObjectTypeSelectionDialog(StoreObject objectToEdit)
         {
             InitializeComponent();
             InitializeObjectTypes();
             SetupEventHandlers();
 
+            // 편집할 객체의 속성으로 UI 채우기
             PopulateControlsForEdit(objectToEdit);
 
+            // 2단계(속성 편집)부터 시작
             currentStep = 2;
             UpdateStepVisual();
         }
 
         private void PopulateControlsForEdit(StoreObject obj)
         {
+            // 1. 객체 타입 정보 찾기
             SelectedType = ConvertToDetectedType(obj.Type);
             selectedTypeInfo = objectTypes.FirstOrDefault(t => t.Type == SelectedType);
-            if (selectedTypeInfo == null) return;
-
             TypeListBox.SelectedItem = selectedTypeInfo;
-            TypeListBox.IsEnabled = false;
+            TypeListBox.IsEnabled = false; // 편집 모드에서는 타입 변경 불가
 
+            // 2. 기본 속성 채우기
             WidthTextBox.Text = obj.Width.ToString();
             LengthTextBox.Text = obj.Length.ToString();
             HeightTextBox.Text = obj.Height.ToString();
             OrientationCombo.SelectedIndex = obj.IsHorizontal ? 0 : 1;
 
+            // 3. 층수, 온도 등 추가 속성 채우기
             if (selectedTypeInfo.HasLayers)
             {
                 LayersSlider.Value = obj.Layers;
@@ -97,7 +102,7 @@ namespace testpro.Dialogs
 
         private void SetupEventHandlers()
         {
-            LayersSlider.ValueChanged += (s, e) => { if (LayersText != null) LayersText.Text = $"{(int)LayersSlider.Value}층"; UpdateLayerSpacing(); };
+            LayersSlider.ValueChanged += (s, e) => { LayersText.Text = $"{(int)LayersSlider.Value}층"; UpdateLayerSpacing(); };
             HeightTextBox.TextChanged += (s, e) => UpdateLayerSpacing();
             WidthTextBox.TextChanged += (s, e) => UpdateSizeDisplay(WidthTextBox, WidthFeetText);
             LengthTextBox.TextChanged += (s, e) => UpdateSizeDisplay(LengthTextBox, LengthFeetText);
@@ -107,15 +112,13 @@ namespace testpro.Dialogs
 
         private void UpdateSizeDisplay(TextBox textBox, TextBlock displayText)
         {
-            if (displayText == null) return;
             if (double.TryParse(textBox.Text, out double inches)) displayText.Text = $"({inches / 12.0:F1}ft)";
             else displayText.Text = "(?)";
         }
 
         private void UpdateLayerSpacing()
         {
-            if (LayerSpacingText == null) return;
-            if (double.TryParse(HeightTextBox.Text, out double height) && LayersSlider.Value > 0)
+            if (double.TryParse(HeightTextBox.Text, out double height))
             {
                 LayerSpacingText.Text = $"{height / (int)LayersSlider.Value:F1}인치";
             }
@@ -123,7 +126,6 @@ namespace testpro.Dialogs
 
         private void UpdateTemperatureDisplay()
         {
-            if (TemperatureFahrenheitText == null) return;
             if (double.TryParse(TemperatureTextBox.Text, out double celsius))
             {
                 TemperatureFahrenheitText.Text = $"({celsius * 9 / 5 + 32:F1}°F)";
@@ -159,6 +161,7 @@ namespace testpro.Dialogs
             PreviewText.Text = $"{selectedTypeInfo.Name} - {selectedTypeInfo.ModelPath}";
             LayersGroup.Visibility = selectedTypeInfo.HasLayers ? Visibility.Visible : Visibility.Collapsed;
             TemperatureGroup.Visibility = selectedTypeInfo.HasTemperature ? Visibility.Visible : Visibility.Collapsed;
+            // Set default values only if textboxes are empty (for creation mode)
             if (string.IsNullOrEmpty(WidthTextBox.Text)) SetDefaultValues();
         }
 

@@ -7,98 +7,11 @@ using testpro.Models;
 
 namespace testpro.Services
 {
-    #region Undo/Redo Command Pattern
-    public interface ICommandAction
-    {
-        void Execute();
-        void Unexecute();
-    }
-
-    public class AddObjectCommand : ICommandAction
-    {
-        private readonly DrawingService _service;
-        private readonly StoreObject _object;
-
-        public AddObjectCommand(DrawingService service, StoreObject obj)
-        {
-            _service = service;
-            _object = obj;
-        }
-
-        public void Execute() => _service.StoreObjects.Add(_object);
-        public void Unexecute() => _service.StoreObjects.Remove(_object);
-    }
-
-    public class RemoveObjectCommand : ICommandAction
-    {
-        private readonly DrawingService _service;
-        private readonly StoreObject _object;
-        private readonly int _index;
-
-        public RemoveObjectCommand(DrawingService service, StoreObject obj)
-        {
-            _service = service;
-            _object = obj;
-            _index = service.StoreObjects.IndexOf(obj);
-        }
-
-        public void Execute() => _service.StoreObjects.Remove(_object);
-        public void Unexecute()
-        {
-            if (_index >= 0 && _index <= _service.StoreObjects.Count)
-            {
-                _service.StoreObjects.Insert(_index, _object);
-            }
-            else
-            {
-                _service.StoreObjects.Add(_object);
-            }
-        }
-    }
-
-    public class MoveObjectCommand : ICommandAction
-    {
-        private readonly StoreObject _object;
-        private readonly Point2D _from;
-        private readonly Point2D _to;
-
-        public MoveObjectCommand(StoreObject obj, Point2D from, Point2D to)
-        {
-            _object = obj;
-            _from = from;
-            _to = to;
-        }
-
-        public void Execute() => _object.Position = _to;
-        public void Unexecute() => _object.Position = _from;
-    }
-
-    public class UpdateObjectPropertiesCommand : ICommandAction
-    {
-        private readonly StoreObject _object;
-        private readonly StoreObject _oldState;
-        private readonly StoreObject _newState;
-
-        public UpdateObjectPropertiesCommand(StoreObject target, StoreObject newState)
-        {
-            _object = target;
-            _oldState = target.Clone(); // 이전 상태 저장
-            _newState = newState;
-        }
-
-        public void Execute() => _object.ApplyState(_newState);
-        public void Unexecute() => _object.ApplyState(_oldState);
-    }
-    #endregion
-
     public class DrawingService : INotifyPropertyChanged
     {
         public List<Wall> Walls { get; } = new List<Wall>();
         public List<Room> Rooms { get; } = new List<Room>();
         public List<StoreObject> StoreObjects { get; } = new List<StoreObject>();
-
-        private readonly Stack<ICommandAction> _undoStack = new Stack<ICommandAction>();
-        private readonly Stack<ICommandAction> _redoStack = new Stack<ICommandAction>();
 
         private const double SnapDistance = 10.0;
 
@@ -127,36 +40,6 @@ namespace testpro.Services
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private void ExecuteCommand(ICommandAction command)
-        {
-            command.Execute();
-            _undoStack.Push(command);
-            _redoStack.Clear(); // 새로운 작업이 실행되면 Redo 스택은 비워짐
-            NotifyChanged();
-        }
-
-        public void Undo()
-        {
-            if (_undoStack.Count > 0)
-            {
-                var command = _undoStack.Pop();
-                command.Unexecute();
-                _redoStack.Push(command);
-                NotifyChanged();
-            }
-        }
-
-        public void Redo()
-        {
-            if (_redoStack.Count > 0)
-            {
-                var command = _redoStack.Pop();
-                command.Execute();
-                _undoStack.Push(command);
-                NotifyChanged();
-            }
-        }
-
         public void SetScale(double scale) => Scale = scale;
         public void SetScaleXY(double scaleX, double scaleY) { ScaleX = scaleX; ScaleY = scaleY; }
 
@@ -179,14 +62,31 @@ namespace testpro.Services
             return wall;
         }
 
-        public StoreObject AddStoreObject(ObjectType type, Point2D position, double width, double height)
+        // 기존 2개 인자를 받는 메서드
+        public StoreObject AddStoreObject(ObjectType type, Point2D position)
         {
-            var obj = new StoreObject(type, position) { Width = width, Length = height };
-            var command = new AddObjectCommand(this, obj);
-            ExecuteCommand(command);
+            var obj = new StoreObject(type, position);
+            StoreObjects.Add(obj);
+            NotifyChanged();
             return obj;
         }
 
+        // === 오류 해결을 위해 추가된 메서드 1 ===
+        // 4개의 인자를 받는 메서드 (객체 그리기용)
+        public StoreObject AddStoreObject(ObjectType type, Point2D position, double width, double height)
+        {
+            var obj = new StoreObject(type, position)
+            {
+                Width = width,
+                Length = height // 2D 캔버스에서는 Height가 Length(깊이)를 의미
+            };
+            StoreObjects.Add(obj);
+            NotifyChanged();
+            return obj;
+        }
+
+        // === 오류 해결을 위해 추가된 메서드 2 ===
+        // 9개의 인자를 받는 메서드 (객체 붙여넣기용)
         public StoreObject AddStoreObject(ObjectType type, Point2D position, double width, double length, double height, int layers, bool isHorizontal, double temperature, string categoryCode)
         {
             var obj = new StoreObject(type, position)
@@ -199,40 +99,30 @@ namespace testpro.Services
                 Temperature = temperature,
                 CategoryCode = categoryCode
             };
-            var command = new AddObjectCommand(this, obj);
-            ExecuteCommand(command);
+            StoreObjects.Add(obj);
+            NotifyChanged();
             return obj;
         }
 
-
         public void RemoveStoreObject(StoreObject obj)
         {
-            if (obj == null) return;
-            var command = new RemoveObjectCommand(this, obj);
-            ExecuteCommand(command);
-        }
-
-        public void MoveStoreObject(StoreObject obj, Point2D from, Point2D to)
-        {
-            var command = new MoveObjectCommand(obj, from, to);
-            ExecuteCommand(command);
+            StoreObjects.Remove(obj);
+            NotifyChanged();
         }
 
         public void UpdateStoreObject(StoreObject obj, double width, double length, double height, int layers, bool isHorizontal, double temperature, string categoryCode)
         {
-            var newState = obj.Clone();
-            newState.Width = width;
-            newState.Length = length;
-            newState.Height = height;
-            newState.Layers = layers;
-            newState.IsHorizontal = isHorizontal;
-            newState.Temperature = temperature;
-            newState.CategoryCode = categoryCode;
-            newState.Rotation = isHorizontal ? 0 : 90;
-            newState.ModifiedAt = DateTime.Now;
+            obj.Width = width;
+            obj.Length = length;
+            obj.Height = height;
+            obj.Layers = layers;
+            obj.IsHorizontal = isHorizontal;
+            obj.Temperature = temperature;
+            obj.CategoryCode = categoryCode;
+            obj.Rotation = isHorizontal ? 0 : 90;
+            obj.ModifiedAt = DateTime.Now;
 
-            var command = new UpdateObjectPropertiesCommand(obj, newState);
-            ExecuteCommand(command);
+            NotifyChanged();
         }
 
         public StoreObject GetObjectAt(Point2D point)
@@ -245,8 +135,6 @@ namespace testpro.Services
             Walls.Clear();
             Rooms.Clear();
             StoreObjects.Clear();
-            _undoStack.Clear();
-            _redoStack.Clear();
             BackgroundImagePath = null;
             ScaleX = 1.0;
             ScaleY = 1.0;

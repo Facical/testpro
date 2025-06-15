@@ -50,23 +50,7 @@ namespace testpro
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Ctrl + Z: Undo
-            if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                _viewModel.DrawingService.Undo();
-                e.Handled = true;
-                return;
-            }
-
-            // Ctrl + Shift + Z 또는 Ctrl + Y: Redo
-            if ((e.Key == Key.Z && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)) ||
-                (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control))
-            {
-                _viewModel.DrawingService.Redo();
-                e.Handled = true;
-                return;
-            }
-
+            
             // Ctrl+C: 복사
             if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
             {
