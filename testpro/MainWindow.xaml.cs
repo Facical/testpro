@@ -45,24 +45,39 @@ namespace testpro
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
             // KeyDown 대신 PreviewKeyDown을 사용하여 키 이벤트를 우선적으로 처리
-            PreviewKeyDown += MainWindow_PreviewKeyDown;
+            this.PreviewKeyDown += MainWindow_PreviewKeyDown;
         }
 
-        // *** 수정된 키보드 이벤트 핸들러 (복사/붙여넣기/삭제/단축키) ***
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // Ctrl + Z: Undo
+            if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                _viewModel.DrawingService.Undo();
+                e.Handled = true;
+                return;
+            }
+
+            // Ctrl + Shift + Z 또는 Ctrl + Y: Redo
+            if ((e.Key == Key.Z && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)) ||
+                (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control))
+            {
+                _viewModel.DrawingService.Redo();
+                e.Handled = true;
+                return;
+            }
+
             // Ctrl+C: 복사
             if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 DrawingCanvasControl.CopySelectedObject();
-                e.Handled = true; // 이벤트가 다른 컨트롤로 전파되는 것을 막음
+                e.Handled = true;
                 return;
             }
 
             // Ctrl+V: 붙여넣기
             if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control)
             {
-                // 마우스 위치를 DrawingCanvas 기준으로 가져옴
                 Point mousePosition = Mouse.GetPosition(DrawingCanvasControl);
                 DrawingCanvasControl.PasteCopiedObject(mousePosition);
                 e.Handled = true;
@@ -81,22 +96,53 @@ namespace testpro
                     e.Handled = true;
                     break;
                 case Key.Delete:
-                    // PropertyPanel이 포커스를 가지고 있어도 Delete 키가 작동하도록
-                    // _selectedObject를 MainWindow에서 직접 확인
                     if (_selectedObject != null)
                     {
+                        // DrawingService의 RemoveStoreObject를 호출하여 Undo/Redo 스택에 기록
                         _viewModel.DrawingService.RemoveStoreObject(_selectedObject);
-                        SelectObject(null); // 선택 해제
-                        DrawingCanvasControl.RedrawAll();
+                        SelectObject(null);
                         e.Handled = true;
                     }
                     break;
                 case Key.Escape:
-                    DrawingCanvasControl.Focus(); // Escape 키는 Canvas가 직접 처리하도록 포커스 전달
-                    // e.Handled를 true로 설정하지 않아 Canvas의 KeyDown 이벤트가 발생하도록 함
+                    // Escape 키는 DrawingCanvas가 직접 처리하도록 포커스만 전달
+                    DrawingCanvasControl.Focus();
                     break;
             }
         }
+
+        private void LayersCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_selectedObject != null && LayersCombo.SelectedIndex >= 0)
+            {
+                _viewModel.DrawingService.UpdateStoreObject(
+                    _selectedObject,
+                    _selectedObject.Width,
+                    _selectedObject.Length,
+                    _selectedObject.Height,
+                    LayersCombo.SelectedIndex + 1,
+                    _selectedObject.IsHorizontal,
+                    _selectedObject.Temperature,
+                    _selectedObject.CategoryCode);
+            }
+        }
+
+        public void SelectObject(StoreObject? obj)
+        {
+            _selectedObject = obj;
+            if (obj != null)
+            {
+                PropertyPanel.Visibility = Visibility.Visible;
+                LayersCombo.SelectedIndex = obj.Layers - 1;
+                LayersCombo.Visibility = (obj.Type == ObjectType.Shelf || obj.Type == ObjectType.Refrigerator || obj.Type == ObjectType.Freezer || obj.Type == ObjectType.DisplayStand) ? Visibility.Visible : Visibility.Collapsed;
+            }
+            else
+            {
+                PropertyPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        #region Other Unchanged Methods
 
         private void DrawModeButton_Click(object sender, RoutedEventArgs e)
         {
@@ -190,7 +236,6 @@ namespace testpro
                     var bottomWall = _viewModel.DrawingService.AddWall(new Point2D(wallRight, wallBottom), new Point2D(wallLeft, wallBottom)); bottomWall.RealLengthInInches = widthInInches;
                     var leftWall = _viewModel.DrawingService.AddWall(new Point2D(wallLeft, wallBottom), new Point2D(wallLeft, wallTop)); leftWall.RealLengthInInches = heightInInches;
                     _viewModel.DrawingService.SetScaleXY((wallRight - wallLeft) / widthInInches, (wallBottom - wallTop) / heightInInches);
-                    DrawingCanvasControl.RedrawAll();
                 }
                 else CreateDefaultOuterWallsWithSize(widthInInches, heightInInches);
             }
@@ -214,7 +259,6 @@ namespace testpro
             var rightWall = _viewModel.DrawingService.AddWall(new Point2D(startX + scaledWidth, startY), new Point2D(startX + scaledWidth, startY + scaledHeight)); rightWall.RealLengthInInches = heightInInches;
             var bottomWall = _viewModel.DrawingService.AddWall(new Point2D(startX + scaledWidth, startY + scaledHeight), new Point2D(startX, startY + scaledHeight)); bottomWall.RealLengthInInches = widthInInches;
             var leftWall = _viewModel.DrawingService.AddWall(new Point2D(startX, startY + scaledHeight), new Point2D(startX, startY)); leftWall.RealLengthInInches = heightInInches;
-            DrawingCanvasControl.RedrawAll();
             _viewModel.DrawingService.SetScaleXY(scale, scale);
         }
 
@@ -223,6 +267,7 @@ namespace testpro
         private void FreezerTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("Freezer", "냉동고"); }
         private void CheckoutTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("Checkout", "계산대"); }
         private void DisplayStandTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("DisplayStand", "진열대"); }
+
         private void SetObjectTool(string toolName, string displayName)
         {
             _currentObjectTool = toolName;
@@ -230,28 +275,7 @@ namespace testpro
             _viewModel.StatusText = $"{displayName} 배치: 영역을 드래그하여 지정하세요";
         }
 
-        private void LayersCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_selectedObject != null && LayersCombo.SelectedIndex >= 0)
-            {
-                _viewModel.DrawingService.UpdateStoreObject(_selectedObject, _selectedObject.Height, LayersCombo.SelectedIndex + 1, _selectedObject.IsHorizontal);
-                DrawingCanvasControl.RedrawAll();
-            }
-        }
-
         public string? GetCurrentObjectTool() => _currentObjectTool;
-
-        public void SelectObject(StoreObject? obj)
-        {
-            _selectedObject = obj;
-            if (obj != null)
-            {
-                PropertyPanel.Visibility = Visibility.Visible;
-                LayersCombo.SelectedIndex = obj.Layers - 1;
-                LayersCombo.Visibility = (obj.Type == ObjectType.Shelf || obj.Type == ObjectType.Refrigerator || obj.Type == ObjectType.Freezer || obj.Type == ObjectType.DisplayStand) ? Visibility.Visible : Visibility.Collapsed;
-            }
-            else PropertyPanel.Visibility = Visibility.Collapsed;
-        }
 
         public void OnObjectPlaced(StoreObject obj)
         {
@@ -313,5 +337,6 @@ namespace testpro
         {
             if (MessageBox.Show("정말로 종료하시겠습니까?", "확인", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) Close();
         }
+        #endregion
     }
 }

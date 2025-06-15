@@ -15,95 +15,53 @@ namespace testpro.Services
 
         private const double SnapDistance = 10.0;
 
-        // X축과 Y축 스케일을 별도로 관리
         private double _scaleX = 1.0;
         private double _scaleY = 1.0;
 
         public double ScaleX
         {
             get => _scaleX;
-            private set
-            {
-                if (value <= 0) value = 1.0; // 0 이하 방지
-                _scaleX = value;
-                OnPropertyChanged();
-            }
+            private set { _scaleX = value > 0 ? value : 1.0; OnPropertyChanged(); }
         }
 
         public double ScaleY
         {
             get => _scaleY;
-            private set
-            {
-                if (value <= 0) value = 1.0; // 0 이하 방지
-                _scaleY = value;
-                OnPropertyChanged();
-            }
+            private set { _scaleY = value > 0 ? value : 1.0; OnPropertyChanged(); }
         }
 
-        // 기존 Scale 속성은 호환성을 위해 유지 (평균값 반환)
         public double Scale
         {
             get => (_scaleX + _scaleY) / 2.0;
-            private set
-            {
-                ScaleX = value;
-                ScaleY = value;
-            }
+            private set { ScaleX = value; ScaleY = value; }
         }
 
-        public void SetScale(double scale)
-        {
-            Scale = scale;
-        }
-
-        public void SetScaleXY(double scaleX, double scaleY)
-        {
-            ScaleX = scaleX;
-            ScaleY = scaleY;
-        }
-
-        // 배경 이미지 관련
-        private string _backgroundImagePath;
-        public string BackgroundImagePath
-        {
-            get => _backgroundImagePath;
-            set
-            {
-                _backgroundImagePath = value;
-                OnPropertyChanged();
-            }
-        }
+        public string BackgroundImagePath { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public void SetScale(double scale) => Scale = scale;
+        public void SetScaleXY(double scaleX, double scaleY) { ScaleX = scaleX; ScaleY = scaleY; }
 
         public Point2D SnapToExistingPoint(Point2D point)
         {
             foreach (var wall in Walls)
             {
-                if (point.DistanceTo(wall.StartPoint) < SnapDistance)
-                    return wall.StartPoint;
-
-                if (point.DistanceTo(wall.EndPoint) < SnapDistance)
-                    return wall.EndPoint;
+                if (point.DistanceTo(wall.StartPoint) < SnapDistance) return wall.StartPoint;
+                if (point.DistanceTo(wall.EndPoint) < SnapDistance) return wall.EndPoint;
             }
             return point;
         }
 
         public Wall AddWall(Point2D startPoint, Point2D endPoint)
         {
-            var snappedStart = SnapToExistingPoint(startPoint);
-            var snappedEnd = SnapToExistingPoint(endPoint);
-
-            var wall = new Wall(snappedStart, snappedEnd);
+            var wall = new Wall(SnapToExistingPoint(startPoint), SnapToExistingPoint(endPoint));
             Walls.Add(wall);
-
             UpdateRooms();
             NotifyChanged();
             return wall;
         }
 
-        // 매장 객체 관련 메서드
         public StoreObject AddStoreObject(ObjectType type, Point2D position)
         {
             var obj = new StoreObject(type, position);
@@ -118,27 +76,25 @@ namespace testpro.Services
             NotifyChanged();
         }
 
-        public void UpdateStoreObject(StoreObject obj, double height, int layers, bool isHorizontal)
+        // *** 수정된 UpdateStoreObject 메서드 ***
+        public void UpdateStoreObject(StoreObject obj, double width, double length, double height, int layers, bool isHorizontal, double temperature, string categoryCode)
         {
+            obj.Width = width;
+            obj.Length = length;
             obj.Height = height;
             obj.Layers = layers;
             obj.IsHorizontal = isHorizontal;
+            obj.Temperature = temperature;
+            obj.CategoryCode = categoryCode;
             obj.Rotation = isHorizontal ? 0 : 90;
+            obj.ModifiedAt = DateTime.Now;
 
-            NotifyChanged();
+            NotifyChanged(); // UI 업데이트를 위해 변경 알림
         }
 
         public StoreObject GetObjectAt(Point2D point)
         {
-            // 역순으로 검색 (위에 있는 객체 우선)
-            for (int i = StoreObjects.Count - 1; i >= 0; i--)
-            {
-                if (StoreObjects[i].ContainsPoint(point))
-                {
-                    return StoreObjects[i];
-                }
-            }
-            return null;
+            return StoreObjects.LastOrDefault(obj => obj.ContainsPoint(point));
         }
 
         public void Clear()
@@ -147,7 +103,6 @@ namespace testpro.Services
             Rooms.Clear();
             StoreObjects.Clear();
             BackgroundImagePath = null;
-            // 스케일 초기화
             ScaleX = 1.0;
             ScaleY = 1.0;
             NotifyChanged();
@@ -157,11 +112,9 @@ namespace testpro.Services
         {
             Rooms.Clear();
             var processedWalls = new HashSet<Wall>();
-
             foreach (var wall in Walls)
             {
                 if (processedWalls.Contains(wall)) continue;
-
                 var room = TryCreateRoomFromWall(wall, processedWalls);
                 if (room != null && room.IsClosedRoom() && room.Area > 100)
                 {
@@ -175,7 +128,6 @@ namespace testpro.Services
             var room = new Room();
             var currentWalls = new List<Wall>();
             var visited = new HashSet<Wall>();
-
             if (FindConnectedWalls(startWall, currentWalls, visited))
             {
                 foreach (var wall in currentWalls)
@@ -185,51 +137,35 @@ namespace testpro.Services
                 }
                 return room;
             }
-
             return null;
         }
 
         private bool FindConnectedWalls(Wall startWall, List<Wall> roomWalls, HashSet<Wall> visited)
         {
             if (visited.Contains(startWall)) return false;
-
             visited.Add(startWall);
             roomWalls.Add(startWall);
 
-            var connectedWalls = GetConnectedWalls(startWall);
-
-            foreach (var connected in connectedWalls)
+            foreach (var connected in GetConnectedWalls(startWall))
             {
                 if (!visited.Contains(connected))
                 {
-                    if (FindConnectedWalls(connected, roomWalls, visited))
-                        return true;
+                    if (FindConnectedWalls(connected, roomWalls, visited)) return true;
                 }
                 else if (connected == roomWalls.First() && roomWalls.Count >= 3)
                 {
                     return true;
                 }
             }
-
             return false;
         }
 
         private List<Wall> GetConnectedWalls(Wall wall)
         {
-            var connected = new List<Wall>();
-
-            foreach (var other in Walls)
-            {
-                if (other != wall && wall.IsConnectedTo(other))
-                {
-                    connected.Add(other);
-                }
-            }
-
-            return connected;
+            return Walls.Where(other => other != wall && wall.IsConnectedTo(other)).ToList();
         }
 
-        private void NotifyChanged([CallerMemberName] string propertyName = null)
+        private void NotifyChanged([CallerMemberName] string propertyName = "")
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
