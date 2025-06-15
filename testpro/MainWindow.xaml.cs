@@ -205,25 +205,61 @@ namespace testpro
 
         private void CreateOuterWallsWithDimensionsExact(double widthInInches, double heightInInches)
         {
-            if (_backgroundImage == null || _loadedFloorPlan == null) { CreateDefaultOuterWallsWithSize(widthInInches, heightInInches); return; }
+            // DrawingCanvasControl의 public 속성을 통해 실제 Image 컨트롤을 가져옵니다.
+            var backgroundImage = DrawingCanvasControl.BackgroundImage;
+
+            if (backgroundImage == null || _loadedFloorPlan == null)
+            {
+                CreateDefaultOuterWallsWithSize(widthInInches, heightInInches);
+                return;
+            }
+
             try
             {
                 var analyzer = new FloorPlanAnalyzer();
                 var bounds = analyzer.FindFloorPlanBounds(_loadedFloorPlan);
+
                 if (bounds != null)
                 {
-                    double imageLeft = Canvas.GetLeft(_backgroundImage), imageTop = Canvas.GetTop(_backgroundImage), imageWidth = _backgroundImage.Width, imageHeight = _backgroundImage.Height;
-                    double wallLeft = imageLeft + (imageWidth * ((double)bounds.Left / _loadedFloorPlan.PixelWidth)), wallTop = imageTop + (imageHeight * ((double)bounds.Top / _loadedFloorPlan.PixelHeight));
-                    double wallRight = imageLeft + (imageWidth * ((double)bounds.Right / _loadedFloorPlan.PixelWidth)), wallBottom = imageTop + (imageHeight * ((double)bounds.Bottom / _loadedFloorPlan.PixelHeight));
-                    var topWall = _viewModel.DrawingService.AddWall(new Point2D(wallLeft, wallTop), new Point2D(wallRight, wallTop)); topWall.RealLengthInInches = widthInInches;
-                    var rightWall = _viewModel.DrawingService.AddWall(new Point2D(wallRight, wallTop), new Point2D(wallRight, wallBottom)); rightWall.RealLengthInInches = heightInInches;
-                    var bottomWall = _viewModel.DrawingService.AddWall(new Point2D(wallRight, wallBottom), new Point2D(wallLeft, wallBottom)); bottomWall.RealLengthInInches = widthInInches;
-                    var leftWall = _viewModel.DrawingService.AddWall(new Point2D(wallLeft, wallBottom), new Point2D(wallLeft, wallTop)); leftWall.RealLengthInInches = heightInInches;
+                    // 실제 표시된 이미지의 위치와 크기를 사용합니다.
+                    double imageLeft = Canvas.GetLeft(backgroundImage);
+                    double imageTop = Canvas.GetTop(backgroundImage);
+                    double imageWidth = backgroundImage.Width;
+                    double imageHeight = backgroundImage.Height;
+
+                    // 이미지 좌표를 캔버스 좌표로 변환
+                    double wallLeft = imageLeft + (imageWidth * ((double)bounds.Left / _loadedFloorPlan.PixelWidth));
+                    double wallTop = imageTop + (imageHeight * ((double)bounds.Top / _loadedFloorPlan.PixelHeight));
+                    double wallRight = imageLeft + (imageWidth * ((double)bounds.Right / _loadedFloorPlan.PixelWidth));
+                    double wallBottom = imageTop + (imageHeight * ((double)bounds.Bottom / _loadedFloorPlan.PixelHeight));
+
+                    // 외벽 생성
+                    var topWall = _viewModel.DrawingService.AddWall(new Point2D(wallLeft, wallTop), new Point2D(wallRight, wallTop));
+                    topWall.RealLengthInInches = widthInInches;
+
+                    var rightWall = _viewModel.DrawingService.AddWall(new Point2D(wallRight, wallTop), new Point2D(wallRight, wallBottom));
+                    rightWall.RealLengthInInches = heightInInches;
+
+                    var bottomWall = _viewModel.DrawingService.AddWall(new Point2D(wallRight, wallBottom), new Point2D(wallLeft, wallBottom));
+                    bottomWall.RealLengthInInches = widthInInches;
+
+                    var leftWall = _viewModel.DrawingService.AddWall(new Point2D(wallLeft, wallBottom), new Point2D(wallLeft, wallTop));
+                    leftWall.RealLengthInInches = heightInInches;
+
+                    // 스케일 설정
                     _viewModel.DrawingService.SetScaleXY((wallRight - wallLeft) / widthInInches, (wallBottom - wallTop) / heightInInches);
                 }
-                else CreateDefaultOuterWallsWithSize(widthInInches, heightInInches);
+                else
+                {
+                    // 경계를 찾지 못했을 경우 기본 크기로 생성
+                    CreateDefaultOuterWallsWithSize(widthInInches, heightInInches);
+                }
             }
-            catch (Exception ex) { MessageBox.Show($"도면 처리 중 오류: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error); CreateDefaultOuterWallsWithSize(widthInInches, heightInInches); }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"도면 처리 중 오류: {ex.Message}", "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                CreateDefaultOuterWallsWithSize(widthInInches, heightInInches);
+            }
         }
 
         private void CreateOuterWallsWithDimensions(double widthInInches, double heightInInches)

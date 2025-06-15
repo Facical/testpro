@@ -16,6 +16,7 @@ namespace testpro.Views
 {
     public partial class DrawingCanvas : UserControl
     {
+        // --- 기존 필드 선언 (변경 없음) ---
         private MainViewModel _viewModel;
         private Point2D _tempStartPoint;
         private bool _isDrawingWall = false;
@@ -38,13 +39,15 @@ namespace testpro.Views
         private Point2D _dragOffset;
         private Point2D _dragStartPosition;
 
+        // --- 객체 감지 관련 필드 (변경 없음) ---
         private List<DetectedObject> _detectedObjects = new List<DetectedObject>();
         private Canvas _detectedObjectsCanvas;
         private DetectedObject _hoveredDetectedObject;
-
         private StoreObject _copiedObject = null;
 
+        // --- public 속성 (수정됨) ---
         public MainWindow MainWindow { get; set; }
+        public Image BackgroundImage => _backgroundImage; // MainWindow에서 접근 가능하도록 추가
 
         public MainViewModel ViewModel
         {
@@ -75,16 +78,27 @@ namespace testpro.Views
         public DrawingCanvas()
         {
             InitializeComponent();
+            // --- _detectedObjectsCanvas를 MainCanvas에 추가하는 로직으로 변경 ---
             _detectedObjectsCanvas = new Canvas { IsHitTestVisible = true };
+            // XAML에 명시적으로 MainCanvas가 있으므로 코드에서 직접 추가합니다.
+            // MainCanvas가 로드된 후 추가하는 것이 더 안정적일 수 있으나, 생성자에서 추가해도 일반적으로 동작합니다.
+            var mainCanvas = this.FindName("MainCanvas") as Canvas;
+            if (mainCanvas != null)
+            {
+                mainCanvas.Children.Add(_detectedObjectsCanvas);
+                Canvas.SetZIndex(_detectedObjectsCanvas, 10); // 다른 요소들 위에 오도록 Z-Index 설정
+            }
+
             Focusable = true;
             MouseEnter += (s, e) => Focus();
         }
 
+        // --- ViewModel 및 DrawingService 이벤트 핸들러 (변경 없음) ---
         private void ViewModel_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(MainViewModel.CurrentTool))
             {
-                UpdateMousePointerVisibility();
+                // UpdateMousePointerVisibility(); // 이 메서드는 현재 구현되지 않았으므로 주석 처리하거나 필요 시 구현
             }
             else if (e.PropertyName == nameof(MainViewModel.DrawingService))
             {
@@ -101,6 +115,7 @@ namespace testpro.Views
             Dispatcher.Invoke(RedrawAll);
         }
 
+        // --- 복사/붙여넣기 메서드 (변경 없음) ---
         public void CopySelectedObject()
         {
             if (_selectedObject != null)
@@ -125,6 +140,7 @@ namespace testpro.Views
             );
         }
 
+        // --- 마우스 이벤트 핸들러 (변경 없음) ---
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             base.OnMouseLeftButtonDown(e);
@@ -148,6 +164,158 @@ namespace testpro.Views
             }
         }
 
+        // --- 이하 모든 메서드는 기존 코드와 동일하거나, 이전 버전의 코드를 복원한 것입니다. ---
+
+        // =================================================================
+        // ===== 여기서부터 객체 감지 및 상호작용 관련 로직 (복원된 코드) =====
+        // =================================================================
+
+        public void DetectObjectsInFloorPlan()
+        {
+            if (_loadedFloorPlan == null || _backgroundImage == null)
+            {
+                MessageBox.Show("먼저 도면 이미지를 불러와주세요.");
+                return;
+            }
+
+            Mouse.OverrideCursor = Cursors.Wait;
+            ClearDetectedObjects(); // 이전 감지 결과 제거
+
+            var analyzer = new FloorPlanAnalyzer();
+            var bounds = analyzer.FindFloorPlanBounds(_loadedFloorPlan);
+            if (bounds != null)
+            {
+                var detected = analyzer.DetectFloorPlanObjects(_loadedFloorPlan, bounds);
+
+                // 이미지 좌표를 캔버스 좌표로 변환
+                double imageLeft = Canvas.GetLeft(_backgroundImage);
+                double imageTop = Canvas.GetTop(_backgroundImage);
+                double scaleX = _backgroundImage.Width / _loadedFloorPlan.PixelWidth;
+                double scaleY = _backgroundImage.Height / _loadedFloorPlan.PixelHeight;
+
+                foreach (var obj in detected)
+                {
+                    var canvasRect = new Rect(
+                        imageLeft + obj.Bounds.Left * scaleX,
+                        imageTop + obj.Bounds.Top * scaleY,
+                        obj.Bounds.Width * scaleX,
+                        obj.Bounds.Height * scaleY
+                    );
+                    obj.Bounds = canvasRect;
+                    _detectedObjects.Add(obj);
+                    CreateDetectedObjectOverlay(obj);
+                }
+            }
+            else
+            {
+                MessageBox.Show("도면에서 경계를 찾을 수 없습니다.");
+            }
+
+            Mouse.OverrideCursor = null;
+        }
+
+        private void ClearDetectedObjects()
+        {
+            _detectedObjectsCanvas.Children.Clear();
+            _detectedObjects.Clear();
+            _hoveredDetectedObject = null;
+        }
+
+        private void CreateDetectedObjectOverlay(DetectedObject obj)
+        {
+            var overlay = new Rectangle
+            {
+                Width = obj.Bounds.Width,
+                Height = obj.Bounds.Height,
+                Fill = Brushes.Transparent, // 기본적으로 투명
+                Stroke = Brushes.Transparent,
+                StrokeThickness = 2,
+                Tag = obj,
+                Cursor = Cursors.Hand
+            };
+
+            Canvas.SetLeft(overlay, obj.Bounds.Left);
+            Canvas.SetTop(overlay, obj.Bounds.Top);
+
+            overlay.MouseEnter += DetectedObject_MouseEnter;
+            overlay.MouseLeave += DetectedObject_MouseLeave;
+            overlay.MouseLeftButtonDown += DetectedObject_MouseLeftButtonDown;
+
+            obj.OverlayShape = overlay;
+            _detectedObjectsCanvas.Children.Add(overlay);
+        }
+
+        private void DetectedObject_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (sender is Rectangle rect && rect.Tag is DetectedObject obj && !obj.IsSelected)
+            {
+                _hoveredDetectedObject = obj;
+                obj.IsHovered = true;
+                rect.Fill = new SolidColorBrush(Color.FromArgb(80, 0, 120, 255)); // 파란색 하이라이트
+                rect.Stroke = Brushes.DodgerBlue;
+            }
+        }
+
+        private void DetectedObject_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (sender is Rectangle rect && rect.Tag is DetectedObject obj && !obj.IsSelected)
+            {
+                _hoveredDetectedObject = null;
+                obj.IsHovered = false;
+                rect.Fill = Brushes.Transparent;
+                rect.Stroke = Brushes.Transparent;
+            }
+        }
+
+        private void DetectedObject_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Rectangle rect && rect.Tag is DetectedObject obj)
+            {
+                ShowObjectTypeSelectionDialog(obj);
+                e.Handled = true; // 이벤트가 다른 곳으로 전파되지 않도록 처리
+            }
+        }
+
+        private void ShowObjectTypeSelectionDialog(DetectedObject detectedObj)
+        {
+            // 이미 변환된 객체는 다이얼로그를 다시 띄우지 않음
+            if (detectedObj.ConvertedStoreObject != null) return;
+
+            var dialog = new ObjectTypeSelectionDialog();
+            dialog.Owner = Window.GetWindow(this);
+
+            if (dialog.ShowDialog() == true)
+            {
+                var storeType = ObjectTypeSelectionDialog.ConvertToObjectType(dialog.SelectedType);
+                var position = new Point2D(detectedObj.Bounds.Left, detectedObj.Bounds.Top);
+
+                // DrawingService의 AddStoreObject 메서드를 사용하여 객체 추가
+                var newStoreObject = _viewModel.DrawingService.AddStoreObject(
+                    storeType, position, dialog.ObjectWidth, dialog.ObjectLength, dialog.ObjectHeight,
+                    dialog.ObjectLayers, dialog.IsHorizontal, dialog.Temperature, dialog.CategoryCode
+                );
+
+                detectedObj.ConvertedStoreObject = newStoreObject;
+                detectedObj.IsSelected = true;
+
+                // 오버레이 스타일 변경 (녹색으로)
+                if (detectedObj.OverlayShape is Rectangle rect)
+                {
+                    rect.Fill = new SolidColorBrush(Color.FromArgb(80, 0, 255, 120));
+                    rect.Stroke = Brushes.Green;
+                }
+            }
+        }
+
+        public int GetDetectedObjectsCount()
+        {
+            return _detectedObjects?.Count ?? 0;
+        }
+
+        // =================================================================
+        // ===== 이하 나머지 메서드 (기존 코드와 동일) ======================
+        // =================================================================
+
         private void HandlePlaceObjectEnd(Point2D position)
         {
             var tempCanvas = this.FindName("TempCanvas") as Canvas;
@@ -166,7 +334,7 @@ namespace testpro.Views
                 if (!string.IsNullOrEmpty(objectTypeStr) && Enum.TryParse(objectTypeStr, out ObjectType type))
                 {
                     var topLeft = new Point2D(Math.Min(_objectStartPoint.X, position.X), Math.Min(_objectStartPoint.Y, position.Y));
-                    _viewModel.DrawingService.AddStoreObject(type, topLeft, width, height);
+                    _viewModel.DrawingService.AddStoreObject(type, topLeft, width, height); // 수정된 AddStoreObject 호출
                 }
             }
         }
@@ -277,9 +445,6 @@ namespace testpro.Views
             return new Point2D(Math.Round(point.X / GridSize) * GridSize, Math.Round(point.Y / GridSize) * GridSize);
         }
 
-        #region ========== MainWindow에서 호출하는 메서드 ==========
-
-        // ===== 이 메서드가 수정되었습니다 =====
         public void SetBackgroundImage(string imagePath)
         {
             var backgroundCanvas = this.FindName("BackgroundCanvas") as Canvas;
@@ -292,7 +457,7 @@ namespace testpro.Views
                 _loadedFloorPlan = new BitmapImage();
                 _loadedFloorPlan.BeginInit();
                 _loadedFloorPlan.UriSource = new Uri(imagePath);
-                _loadedFloorPlan.CacheOption = BitmapCacheOption.OnLoad; // 이미지를 즉시 로드하여 크기를 알 수 있도록 함
+                _loadedFloorPlan.CacheOption = BitmapCacheOption.OnLoad;
                 _loadedFloorPlan.EndInit();
 
                 if (_backgroundImage == null)
@@ -302,25 +467,17 @@ namespace testpro.Views
                 }
                 _backgroundImage.Source = _loadedFloorPlan;
 
-                // --- 화면 크기에 맞게 이미지 크기 조정 및 중앙 정렬 ---
-                // 1. 뷰포트(보이는 영역) 크기 가져오기
                 double viewWidth = scrollViewer.ActualWidth;
                 double viewHeight = scrollViewer.ActualHeight;
-
-                // 2. 이미지 원본 크기 가져오기
                 double imgWidth = _loadedFloorPlan.PixelWidth;
                 double imgHeight = _loadedFloorPlan.PixelHeight;
-
-                // 3. 가로/세로 비율을 계산하여 더 작은 쪽을 기준으로 최종 비율 결정
                 double scaleX = viewWidth / imgWidth;
                 double scaleY = viewHeight / imgHeight;
-                double finalScale = Math.Min(scaleX, scaleY) * 0.95; // 95% 크기로 약간의 여백을 줌
+                double finalScale = Math.Min(scaleX, scaleY) * 0.95;
 
-                // 4. 최종 크기 계산
                 _backgroundImage.Width = imgWidth * finalScale;
                 _backgroundImage.Height = imgHeight * finalScale;
 
-                // 5. 전체 캔버스의 중앙에 배치
                 Canvas.SetLeft(_backgroundImage, (mainCanvas.Width - _backgroundImage.Width) / 2);
                 Canvas.SetTop(_backgroundImage, (mainCanvas.Height - _backgroundImage.Height) / 2);
             }
@@ -338,37 +495,9 @@ namespace testpro.Views
                 backgroundCanvas.Children.Remove(_backgroundImage);
                 _backgroundImage = null;
                 _loadedFloorPlan = null;
+                ClearDetectedObjects(); // 배경 제거 시 감지된 객체도 제거
             }
         }
-
-        public void DetectObjectsInFloorPlan()
-        {
-            if (_loadedFloorPlan == null)
-            {
-                MessageBox.Show("먼저 도면 이미지를 불러와주세요.");
-                return;
-            }
-
-            var analyzer = new FloorPlanAnalyzer();
-            var bounds = analyzer.FindFloorPlanBounds(_loadedFloorPlan);
-            if (bounds != null)
-            {
-                _detectedObjects = analyzer.DetectFloorPlanObjects(_loadedFloorPlan, bounds);
-            }
-            else
-            {
-                MessageBox.Show("도면에서 경계를 찾을 수 없습니다.");
-            }
-        }
-
-        public int GetDetectedObjectsCount()
-        {
-            return _detectedObjects?.Count ?? 0;
-        }
-
-        #endregion
-
-        #region Drawing and Helper Methods
 
         private void SelectObject(StoreObject obj)
         {
@@ -414,19 +543,9 @@ namespace testpro.Views
 
         private void DrawingCanvas_Loaded(object sender, RoutedEventArgs e)
         {
-            var mainCanvas = this.FindName("MainCanvas") as Canvas;
-            if (mainCanvas != null && !mainCanvas.Children.Contains(_detectedObjectsCanvas))
-            {
-                mainCanvas.Children.Add(_detectedObjectsCanvas);
-            }
-
             DrawGrid();
             Focus();
-            UpdateMousePointerVisibility();
         }
-
-        private void UpdateMousePointerVisibility() { /* 필요 시 구현 */ }
-        private void UpdateStartPointIndicatorPosition() { /* 필요 시 구현 */ }
 
         private void DrawGrid()
         {
@@ -596,6 +715,5 @@ namespace testpro.Views
                 }
             }
         }
-        #endregion
     }
 }
