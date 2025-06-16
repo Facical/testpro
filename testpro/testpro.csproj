@@ -9,6 +9,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Models\Checkout\checkout.mtl" />
+	  <None Remove="Models\Checkout\checkout.obj" />
+	  <None Remove="Models\Freezer\freezer.mtl" />
+	  <None Remove="Models\Freezer\freezer.obj" />
 	  <None Remove="Models\Refrigerator\beverage_refrigerator.mtl" />
 	  <None Remove="Models\Refrigerator\beverage_refrigerator.obj" />
 	  <None Remove="Models\Refrigerator\refrigerator_glass.mtl" />
@@ -18,6 +22,18 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Content Include="Models\Checkout\checkout.mtl">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Models\Checkout\checkout.obj">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Models\Freezer\freezer.mtl">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Models\Freezer\freezer.obj">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
 	  <Content Include="Models\Refrigerator\beverage_refrigerator.mtl">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
@@ -42,9 +58,6 @@
 	<ItemGroup>
 		<PackageReference Include="HelixToolkit.Wpf" Version="2.27.0" />
 		<PackageReference Include="System.Drawing.Common" Version="8.0.0" />
-	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="Models\Checkout\" />
 	</ItemGroup>
 
 </Project>
