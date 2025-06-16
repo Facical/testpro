@@ -190,6 +190,95 @@
                                          Unchecked="WallTool_Unchecked"
                                          Margin="2,5"/>
                         </StackPanel>
+                        <!-- 객체 도구 -->
+                        <TextBlock Text="매장 객체 도구" Style="{StaticResource SectionHeaderStyle}"/>
+
+                        <!-- 선택 도구 -->
+                        <StackPanel Orientation="Horizontal" Margin="5">
+                            <Button Content="선택" 
+                            Command="{Binding SelectToolCommand}"
+                            Style="{StaticResource ToolButtonStyle}"/>
+                        </StackPanel>
+
+                        <!-- 객체 버튼들 -->
+                        <WrapPanel Margin="5">
+                            <Button Content="진열대" 
+Click="DisplayStandTool_Click"
+Width="70" Height="70" 
+Margin="2">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+            BorderBrush="Gray" 
+            BorderThickness="1"
+            CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="🏪" FontSize="30" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock Text="{TemplateBinding Content}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button Content="냉장고" 
+                            Click="RefrigeratorTool_Click"
+                            Width="70" Height="70" 
+                            Margin="2">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                        BorderBrush="Gray" 
+                                        BorderThickness="1"
+                                        CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="❄️" FontSize="30" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock Text="{TemplateBinding Content}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button Content="계산대" 
+                            Click="CheckoutTool_Click"
+                            Width="70" Height="70" 
+                            Margin="2">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+                                        BorderBrush="Gray" 
+                                        BorderThickness="1"
+                                        CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="💳" FontSize="30" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock Text="{TemplateBinding Content}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button Content="냉동고" 
+Click="FreezerTool_Click"
+Width="70" Height="70" 
+Margin="2">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" 
+            BorderBrush="Gray" 
+            BorderThickness="1"
+            CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="🧊" FontSize="30" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                                <TextBlock Text="{TemplateBinding Content}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </WrapPanel>
+
                     </StackPanel>
 
                     <!-- 도면 불러오기 모드 패널 내에 추가 -->
