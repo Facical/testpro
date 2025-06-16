@@ -535,7 +535,7 @@ private Model3D TryLoadObjModel(StoreObject obj)
         {
             var radX = _rotationX * Math.PI / 180;
             var radY = _rotationY * Math.PI / 180;
-            var x = _zoom * Math.Cos(radX) * Math.Sin(radY);
+            var x = -(_zoom * Math.Cos(radX) * Math.Sin(radY));
             var y = _zoom * Math.Cos(radX) * Math.Cos(radY);
             var z = _zoom * Math.Sin(radX);
             MainCamera.Position = _lookAtPoint + new Vector3D(x, y, z);

@@ -12,7 +12,10 @@
 
     <ScrollViewer x:Name="CanvasScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
         <Grid>
-            <Canvas x:Name="MainCanvas" Width="3000" Height="2000" ClipToBounds="True">
+            <Canvas x:Name="MainCanvas" Width="3000" Height="2000" ClipToBounds="True"
+        MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+        MouseLeftButtonUp="MainCanvas_MouseLeftButtonUp"
+        MouseMove="Canvas_MouseMove">
                 <Canvas.Background>
                     <SolidColorBrush Color="#FFE4E4E4"/>
                 </Canvas.Background>

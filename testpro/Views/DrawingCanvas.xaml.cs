@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using testpro.Models;
+using System.Diagnostics;
 using testpro.Services;
 using testpro.ViewModels;
 using testpro.Dialogs;
@@ -91,6 +92,7 @@ namespace testpro.Views
 
             Focusable = true;
             MouseEnter += (s, e) => Focus();
+
         }
 
         // --- ViewModel 및 DrawingService 이벤트 핸들러 (변경 없음) ---
@@ -164,11 +166,112 @@ namespace testpro.Views
             }
         }
 
+        private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            Focus();
+            var mainCanvas = sender as IInputElement;
+            if (mainCanvas == null) return;
+            var position = e.GetPosition(mainCanvas);
+            var snappedPosition = SnapToGrid(new Point2D(position.X, position.Y));
+
+            switch (_viewModel?.CurrentTool)
+            {
+                case "PlaceObject":
+                    HandlePlaceObjectStart(snappedPosition);
+                    break;
+                case "Select":
+                    HandleSelectTool(snappedPosition, e);
+                    break;
+                case "WallStraight":
+                    HandleWallTool(snappedPosition);
+                    break;
+            }
+        }
+
+        private void Canvas_MouseMove(object sender, MouseEventArgs e)
+        {
+            var mainCanvas = sender as IInputElement;
+            if (mainCanvas == null) return;
+            var mousePos = e.GetPosition(mainCanvas);
+            var snappedPosition = SnapToGrid(new Point2D(mousePos.X, mousePos.Y));
+
+            if (_isDrawingWall && _previewWall != null)
+            {
+                UpdatePreviewWall(_tempStartPoint, snappedPosition);
+            }
+            else if (_isDrawingObject && _objectPreview != null)
+            {
+                UpdateObjectPreview(snappedPosition);
+            }
+            else if (_isDraggingObject && _selectedObject != null && e.LeftButton == MouseButtonState.Pressed)
+            {
+                var newPosition = new Point2D(snappedPosition.X - _dragOffset.X, snappedPosition.Y - _dragOffset.Y);
+                _selectedObject.Position = newPosition;
+                RedrawAll();
+            }
+            else if (_isPanning && e.LeftButton == MouseButtonState.Pressed)
+            {
+                var scrollViewer = this.FindName("CanvasScrollViewer") as ScrollViewer;
+                var currentPoint = e.GetPosition(this);
+                var delta = currentPoint - _lastPanPoint;
+                scrollViewer?.ScrollToHorizontalOffset(scrollViewer.HorizontalOffset - delta.X);
+                scrollViewer?.ScrollToVerticalOffset(scrollViewer.VerticalOffset - delta.Y);
+                _lastPanPoint = currentPoint;
+            }
+            else if (_viewModel?.CurrentTool == "Select")
+            {
+                UpdateObjectHover(new Point2D(mousePos.X, mousePos.Y));
+            }
+        }
+
+        private void MainCanvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            var mainCanvas = sender as UIElement;
+            if (mainCanvas == null) return;
+
+            if (_isPanning)
+            {
+                _isPanning = false;
+                mainCanvas.ReleaseMouseCapture();
+            }
+            else if (_isDraggingObject && _selectedObject != null)
+            {
+                _isDraggingObject = false;
+                mainCanvas.ReleaseMouseCapture();
+            }
+            else if (_isDrawingObject)
+            {
+                var snappedPosition = SnapToGrid(new Point2D(e.GetPosition(mainCanvas).X, e.GetPosition(mainCanvas).Y));
+                HandlePlaceObjectEnd(snappedPosition);
+            }
+        }
+
+
         // --- 이하 모든 메서드는 기존 코드와 동일하거나, 이전 버전의 코드를 복원한 것입니다. ---
 
         // =================================================================
         // ===== 여기서부터 객체 감지 및 상호작용 관련 로직 (복원된 코드) =====
         // =================================================================
+
+        private void UpdatePreviewWall(Point2D startPoint, Point2D endPoint)
+        {
+            if (_previewWall == null) return;
+
+            // 참고: 예전 코드에서는 벽 두께를 고려하여 미리보기 영역을 계산했습니다.
+            // 이는 벽을 나타내는 사각형이므로 정상적인 로직입니다.
+            var thickness = 10.0;
+
+            var minX = Math.Min(startPoint.X, endPoint.X) - thickness / 2;
+            var minY = Math.Min(startPoint.Y, endPoint.Y) - thickness / 2;
+            var width = Math.Abs(endPoint.X - startPoint.X) + thickness;
+            var height = Math.Abs(endPoint.Y - startPoint.Y) + thickness;
+
+            Canvas.SetLeft(_previewWall, minX);
+            Canvas.SetTop(_previewWall, minY);
+            _previewWall.Width = width;
+            _previewWall.Height = height;
+            _previewWall.RenderTransform = null;
+        }
 
         public void DetectObjectsInFloorPlan()
         {
@@ -368,7 +471,13 @@ namespace testpro.Views
             var mousePos = e.GetPosition(mainCanvas);
             var snappedPosition = SnapToGrid(new Point2D(mousePos.X, mousePos.Y));
 
-            if (_isDrawingObject && _objectPreview != null)
+            // ▼▼▼ 이 if 문이 핵심입니다. ▼▼▼
+            if (_isDrawingWall && _previewWall != null)
+            {
+                // 벽을 그리는 중이면 벽 미리보기를 업데이트합니다.
+                UpdatePreviewWall(_tempStartPoint, snappedPosition);
+            }
+            else if (_isDrawingObject && _objectPreview != null)
             {
                 UpdateObjectPreview(snappedPosition);
             }
