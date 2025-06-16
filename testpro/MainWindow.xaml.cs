@@ -135,7 +135,9 @@ namespace testpro
                 LoadModeButton.IsChecked = false;
                 _currentEditMode = EditMode.Drawing;
                 DrawingModePanel.Visibility = Visibility.Visible;
+
                 LoadingModePanel.Visibility = Visibility.Collapsed;
+
                 DrawingCanvasControl.ClearBackgroundImage();
                 _viewModel.DrawingService.BackgroundImagePath = null;
                 _viewModel.StatusText = "도면 그리기 모드";
@@ -286,7 +288,7 @@ namespace testpro
         private void RefrigeratorTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("Refrigerator", "냉장고"); }
         private void FreezerTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("Freezer", "냉동고"); }
         private void CheckoutTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("Checkout", "계산대"); }
-        private void DisplayStandTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("DisplayStand", "진열대"); }
+        private void DisplayStandTool_Click(object sender, RoutedEventArgs e) { SetObjectTool("Shelf", "진열대"); }
 
         private void SetObjectTool(string toolName, string displayName)
         {

@@ -90,6 +90,7 @@ namespace testpro.Views
                 Canvas.SetZIndex(_detectedObjectsCanvas, 10); // 다른 요소들 위에 오도록 Z-Index 설정
             }
 
+            Loaded += DrawingCanvas_Loaded;
             Focusable = true;
             MouseEnter += (s, e) => Focus();
 
