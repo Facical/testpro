@@ -19,6 +19,8 @@
 	  <None Remove="Models\Refrigerator\refrigerator_glass.obj" />
 	  <None Remove="Models\Refrigerator\refrigerator_shelf.mtl" />
 	  <None Remove="Models\Refrigerator\refrigerator_shelf.obj" />
+	  <None Remove="Models\Shelf\ConvenienceShelf.mtl" />
+	  <None Remove="Models\Shelf\ConvenienceShelf.obj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -50,6 +52,12 @@
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	  <Content Include="Models\Refrigerator\refrigerator_shelf.obj">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Models\Shelf\ConvenienceShelf.mtl">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="Models\Shelf\ConvenienceShelf.obj">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
 	</ItemGroup>

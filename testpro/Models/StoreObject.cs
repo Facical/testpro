@@ -53,8 +53,8 @@ namespace testpro.Models
                     Width = 48; Length = 18; Height = 72; Layers = 3;
                     Fill = new SolidColorBrush(Color.FromRgb(139, 69, 19));
                     HasLayerSupport = true;
-                    ModelBasePath = "Models/Shelf/display_rack_shelf.obj";
-                    ShelfModelPath = "Models/Shelf/shelf_layer.obj";
+                    ModelBasePath = "Models/Shelf/ConvenienceShelf.obj";
+                    //ShelfModelPath = "Models/Shelf/shelf_layer.obj";
                     break;
                 case ObjectType.Refrigerator:
                     Width = 36; Length = 24; Height = 84; Layers = 2;
@@ -68,8 +68,7 @@ namespace testpro.Models
                     Width = 36; Length = 24; Height = 84; Layers = 3;
                     Fill = new SolidColorBrush(Color.FromRgb(150, 200, 255));
                     HasLayerSupport = true;
-                    ModelBasePath = "Models/Freezer/freezer_frame.obj";
-                    ShelfModelPath = "Models/Freezer/freezer_shelf.obj";
+                    ModelBasePath = "Models/Freezer/freezer.obj";
                     Temperature = -18.0;
                     break;
                 case ObjectType.Checkout:
@@ -78,6 +77,7 @@ namespace testpro.Models
                     HasLayerSupport = false;
                     ModelBasePath = "Models/Checkout/checkout.obj";
                     break;
+
                 case ObjectType.DisplayStand:
                     Width = 60; Length = 30; Height = 48; Layers = 2;
                     Fill = new SolidColorBrush(Color.FromRgb(255, 228, 196));

@@ -166,10 +166,8 @@ namespace testpro.Views
             }
         }
 
-        // --- 이하 코드는 이전 답변과 동일합니다 ---
-        #region Unchanged Methods
 
-        private Model3D TryLoadObjModel(StoreObject obj)
+private Model3D TryLoadObjModel(StoreObject obj)
         {
             try
             {
@@ -212,28 +210,80 @@ namespace testpro.Views
                 }
 
                 var transformGroup = new Transform3DGroup();
-                double desiredWidthFt = (obj.IsHorizontal ? obj.Width : obj.Length) / 12.0;
-                double desiredLengthFt = (obj.IsHorizontal ? obj.Length : obj.Width) / 12.0;
-                double desiredHeightFt = obj.Height / 12.0;
 
-                double scaleX = desiredWidthFt / originalBounds.SizeX;
-                double scaleY = desiredLengthFt / originalBounds.SizeY;
-                double scaleZ = desiredHeightFt / originalBounds.SizeZ;
-
+                // 1. 모델의 '기하학적 중심'을 (0,0,0) 원점으로 이동시킵니다.
                 double initialOffsetX = originalBounds.X + originalBounds.SizeX / 2.0;
                 double initialOffsetY = originalBounds.Y + originalBounds.SizeY / 2.0;
-                double initialOffsetZ = originalBounds.Z;
+                double initialOffsetZ = originalBounds.Z + originalBounds.SizeZ / 2.0;
+                transformGroup.Children.Add(new TranslateTransform3D(-initialOffsetX, -initialOffsetY, -initialOffsetZ));
 
+                // --- 스케일링 및 회전 변수 설정 ---
+                double desiredWidthFt, desiredLengthFt, desiredHeightFt;
+                double scaleX, scaleY, scaleZ;
+
+                // ==================================================================
+                // ===== ▼ Freezer만 분리하기 위해 switch 문으로 변경 ▼ =====
+                // ==================================================================
+                switch (obj.Type)
+                {
+                    case ObjectType.Refrigerator:
+                        desiredWidthFt = (obj.IsHorizontal ? obj.Width : obj.Length) / 12.0;
+                        desiredLengthFt = (obj.IsHorizontal ? obj.Length : obj.Width) / 12.0;
+                        desiredHeightFt = obj.Height / 12.0;
+
+                        scaleX = desiredWidthFt / originalBounds.SizeX;
+                        scaleY = desiredLengthFt / originalBounds.SizeY;
+                        scaleZ = desiredHeightFt / originalBounds.SizeZ;
+
+                        transformGroup.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
+
+                        if (!obj.IsHorizontal)
+                        {
+                            transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), 90)));
+                        }
+                        break;
+
+                    case ObjectType.Freezer: // Freezer 로직 분리
+                        desiredWidthFt = obj.Width / 12.0;
+                        desiredLengthFt = obj.Length / 12.0;
+                        desiredHeightFt = obj.Height / 12.0;
+
+                        scaleX = desiredWidthFt / originalBounds.SizeX;
+                        scaleY = desiredLengthFt / originalBounds.SizeZ;
+                        scaleZ = desiredHeightFt / originalBounds.SizeY;
+
+                        transformGroup.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
+
+                        transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), 90)));
+                        // Yaw 회전 시 180도를 더해 앞뒤를 바꿔줍니다.
+                        transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), obj.Rotation + 180)));
+                        break;
+
+                    default: // Shelf, Checkout 등 나머지 모든 객체
+                        desiredWidthFt = obj.Width / 12.0;
+                        desiredLengthFt = obj.Length / 12.0;
+                        desiredHeightFt = obj.Height / 12.0;
+
+                        scaleX = desiredWidthFt / originalBounds.SizeX;
+                        scaleY = desiredLengthFt / originalBounds.SizeZ;
+                        scaleZ = desiredHeightFt / originalBounds.SizeY;
+
+                        transformGroup.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
+
+                        transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), 90)));
+                        transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), obj.Rotation)));
+                        break;
+                }
+                // ==================================================================
+                // ===== ▲ 여기가 최종 수정 부분입니다 ▲ =====
+                // ==================================================================
+
+                // --- 최종 위치 이동 ---
                 double finalCenterX = (obj.Position.X / 12.0) + (desiredWidthFt / 2.0);
                 double finalCenterY = (obj.Position.Y / 12.0) + (desiredLengthFt / 2.0);
+                double finalOffsetZ = desiredHeightFt / 2.0;
 
-                transformGroup.Children.Add(new TranslateTransform3D(-initialOffsetX, -initialOffsetY, -initialOffsetZ));
-                transformGroup.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
-                if (!obj.IsHorizontal)
-                {
-                    transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), 90)));
-                }
-                transformGroup.Children.Add(new TranslateTransform3D(finalCenterX, finalCenterY, 0));
+                transformGroup.Children.Add(new TranslateTransform3D(finalCenterX, finalCenterY, finalOffsetZ));
 
                 finalModelGroup.Transform = transformGroup;
                 return finalModelGroup;
@@ -560,6 +610,5 @@ namespace testpro.Views
 
         public void FocusOn3DModel() => ZoomExtents();
 
-        #endregion
     }
 }

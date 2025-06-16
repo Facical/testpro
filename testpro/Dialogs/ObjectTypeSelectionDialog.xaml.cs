@@ -88,9 +88,9 @@ namespace testpro.Dialogs
         {
             objectTypes = new List<ObjectTypeInfo>
             {
-                new ObjectTypeInfo { Type = DetectedObjectType.Shelf, Name = "선반/진열대", Icon = "📦", Description = "다층 진열이 가능한 선반", ModelPath = "display_rack_shelf.obj", HasLayers = true, HasTemperature = false },
+                new ObjectTypeInfo { Type = DetectedObjectType.Shelf, Name = "선반/진열대", Icon = "📦", Description = "다층 진열이 가능한 선반", ModelPath = "ConvenienceShelf.obj", HasLayers = true, HasTemperature = false },
                 new ObjectTypeInfo { Type = DetectedObjectType.Refrigerator, Name = "냉장고", Icon = "❄️", Description = "음료 및 냉장 제품 보관", ModelPath = "beverage_refrigerator.obj", HasLayers = true, HasTemperature = true },
-                new ObjectTypeInfo { Type = DetectedObjectType.Freezer, Name = "냉동고", Icon = "🧊", Description = "아이스크림 및 냉동식품 보관", ModelPath = "freezer.obj", HasLayers = true, HasTemperature = true },
+                new ObjectTypeInfo { Type = DetectedObjectType.Freezer, Name = "냉동고", Icon = "🧊", Description = "냉동식품 보관", ModelPath = "freezer.obj", HasLayers = true, HasTemperature = true },
                 new ObjectTypeInfo { Type = DetectedObjectType.Checkout, Name = "계산대", Icon = "💳", Description = "고객 계산 처리 공간", ModelPath = "checkout.obj", HasLayers = false, HasTemperature = false },
                 new ObjectTypeInfo { Type = DetectedObjectType.DisplayStand, Name = "진열대", Icon = "🏪", Description = "특별 진열용 스탠드", ModelPath = "display_stand_pillar.obj", HasLayers = true, HasTemperature = false },
                 new ObjectTypeInfo { Type = DetectedObjectType.Pillar, Name = "기둥", Icon = "🏛️", Description = "구조물 기둥", ModelPath = "pillar.obj", HasLayers = false, HasTemperature = false }
