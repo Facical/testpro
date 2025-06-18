@@ -270,7 +270,7 @@ private Model3D TryLoadObjModel(StoreObject obj)
 
                         transformGroup.Children.Add(new ScaleTransform3D(scaleX, scaleY, scaleZ));
 
-                        transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), 90)));
+                        transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(1, 0, 0), 0)));
                         transformGroup.Children.Add(new RotateTransform3D(new AxisAngleRotation3D(new Vector3D(0, 0, 1), obj.Rotation)));
                         break;
                 }
